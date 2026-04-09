@@ -1,0 +1,68 @@
+.quienes-somos-page {
+	width: 100%;
+	min-height: 60vh;
+	background: #fdc24a;
+	padding: 26px 20px 34px;
+	box-sizing: border-box;
+}
+
+.quienes-somos-page__card {
+	width: min(1180px, 100%);
+	margin: 0 auto;
+	background: #ffab00;
+	color: #2f1400;
+	border-radius: 14px;
+	padding: 20px 18px;
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
+	text-align: left;
+}
+
+.quienes-somos-page__card h1 {
+	margin: 0 0 8px;
+	font-size: clamp(1.7rem, 3vw, 2.2rem);
+	color: #8a1600;
+}
+
+.quienes-somos-page__card p {
+	margin: 0;
+	font-size: clamp(1rem, 1.2vw, 1.08rem);
+	font-weight: 600;
+}
+
+.quienes-somos-page__layout {
+	display: grid;
+	grid-template-columns: 1.3fr minmax(220px, 320px);
+	gap: 22px;
+	align-items: start;
+}
+
+.quienes-somos-page__content {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	max-width: 100%;
+}
+
+.quienes-somos-page__content p {
+	margin: 0;
+	line-height: 1.7;
+	text-wrap: pretty;
+}
+
+.quienes-somos-page__image {
+	width: 100%;
+	height: auto;
+	display: block;
+	border-radius: 12px;
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+@media (max-width: 900px) {
+	.quienes-somos-page__layout {
+		grid-template-columns: 1fr;
+	}
+
+	.quienes-somos-page__image {
+		max-width: 420px;
+	}
+}

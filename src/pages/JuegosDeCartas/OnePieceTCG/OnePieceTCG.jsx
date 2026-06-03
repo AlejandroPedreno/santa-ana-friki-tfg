@@ -1,7 +1,4 @@
-import { useContext, useMemo, useState } from 'react'
-import Header from '../../../components/Header/Header.jsx'
-import Footer from '../../../components/Footer/Footer.jsx'
-import Product from '../../../components/Product/Product.jsx'
+import { useContext } from 'react'
 import st28 from '../../../resources/images/prueba/st28.png'
 import st27 from '../../../resources/images/prueba/st27.png'
 import st25 from '../../../resources/images/prueba/st25.png'
@@ -13,11 +10,10 @@ import st08 from '../../../resources/images/prueba/st08.png'
 import onePieceBanner from '../../../resources/images/home/slider-home/slider-one-piece-tcg.png'
 import cartasSueltas from '../../../resources/images/cartas-sueltas.png'
 import { CartContext } from '../../../context/CartContext.jsx'
-import './OnePieceTCG.css'
+import CardGamePage from '../../../components/CardGamePage/CardGamePage.jsx'
 
 function OnePieceTCG() {
 	const { addToCart } = useContext(CartContext)
-	const [sortBy, setSortBy] = useState('launch-desc')
 
 	const products = [
 		{
@@ -79,89 +75,37 @@ function OnePieceTCG() {
 		},
 	]
 
-	const sortedProducts = useMemo(() => {
-		const parsePrice = (value) => parseFloat(value.replace('€', '').replace('EUR', '').trim())
-
-		const ordered = [...products].sort((a, b) => {
-			if (sortBy === 'price-asc') {
-				return parsePrice(a.price) - parsePrice(b.price)
-			}
-
-			if (sortBy === 'price-desc') {
-				return parsePrice(b.price) - parsePrice(a.price)
-			}
-
-			if (sortBy === 'launch-asc') {
-				return a.releaseOrder - b.releaseOrder
-			}
-
-			return b.releaseOrder - a.releaseOrder
-		})
-
-		return ordered
-	}, [products, sortBy])
-
 	return (
-		<>
-			<Header />
-
-			<main className="one-piece-page">
-				<section className="one-piece-page__banner-container" aria-label="Banner One Piece TCG">
-					<div className="one-piece-page__banner">
-						<img
-							className="one-piece-page__banner-image"
-							src={onePieceBanner}
-							alt="Banner de One Piece TCG"
-						/>
-					</div>
-					<a
-						href="https://www.cardmarket.com/es/OnePiece/Users/SantaAnaFriki/Offers/Singles"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="one-piece-page__banner-link"
-						aria-label="Cartas sueltas - Ir a CardMarket"
-					>
-						<img
-							className="one-piece-page__banner-cartas-sueltas"
-							src={cartasSueltas}
-							alt="Cartas sueltas"
-						/>
-					</a>
-				</section>
-
-				<section className="one-piece-page__toolbar" aria-label="Ordenar productos One Piece">
-					<label className="one-piece-page__toolbar-label" htmlFor="one-piece-sort-select">
-						Ordenar por
-					</label>
-					<select
-						id="one-piece-sort-select"
-						className="one-piece-page__toolbar-select"
-						value={sortBy}
-						onChange={(event) => setSortBy(event.target.value)}
-					>
-						<option value="launch-desc">Lanzamiento: mas reciente</option>
-						<option value="launch-asc">Lanzamiento: mas antiguo</option>
-						<option value="price-asc">Precio: menor a mayor</option>
-						<option value="price-desc">Precio: mayor a menor</option>
-					</select>
-				</section>
-
-				<section className="one-piece-page__products" aria-label="Productos One Piece TCG">
-					{sortedProducts.map((product) => (
-						<Product
-							key={product.id}
-							image={product.image}
-							name={product.name}
-							price={product.price}
-							onAddToCart={() => addToCart(product)}
-							inStock={product.inStock !== false}
-						/>
-					))}
-				</section>
-			</main>
-
-			<Footer />
-		</>
+		<CardGamePage
+			title="One Piece TCG"
+			bannerImage={onePieceBanner}
+			bannerAlt="Banner de One Piece TCG"
+			bannerAriaLabel="Banner One Piece TCG"
+			bannerAside={
+				<a
+					href="https://www.cardmarket.com/es/OnePiece/Users/SantaAnaFriki/Offers/Singles"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="one-piece-page__banner-link"
+					aria-label="Cartas sueltas - Ir a CardMarket"
+				>
+					<img
+						className="one-piece-page__banner-cartas-sueltas"
+						src={cartasSueltas}
+						alt="Cartas sueltas"
+					/>
+				</a>
+			}
+			products={products.map((product) => ({
+				...product,
+				onAddToCart: () => addToCart(product),
+			}))}
+			initialSortBy="launch-desc"
+			sortSelectId="one-piece-sort-select"
+			sortAriaLabel="Ordenar productos One Piece"
+			productsAriaLabel="Productos One Piece TCG"
+			pageClassName="one-piece-page"
+		/>
 	)
 }
 

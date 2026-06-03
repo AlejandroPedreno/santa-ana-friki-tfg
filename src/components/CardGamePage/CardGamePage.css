@@ -1,0 +1,232 @@
+.card-game-page {
+	width: 100%;
+	min-height: 60vh;
+	background: #fdc24a;
+	padding: 26px 20px 34px;
+	box-sizing: border-box;
+}
+
+.card-game-page__banner-container {
+	width: 100%;
+	margin: 0 0 18px;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 220px;
+}
+
+.card-game-page__banner {
+	width: min(700px, 100%);
+	border-radius: 14px;
+	overflow: hidden;
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+	background: #111;
+	margin: 0 auto;
+}
+
+.card-game-page__banner-image {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.card-game-page__top-content {
+	width: calc(100% - 40px);
+	max-width: 1180px;
+	margin: 0 auto 14px;
+}
+
+.card-game-page__category-label {
+	display: inline-block;
+	margin: 0 0 8px;
+	color: #2f1400;
+	font-weight: 700;
+	font-size: 0.98rem;
+}
+
+.card-game-page__category-select {
+	width: min(100%, 420px);
+	border: 1px solid #c10d00;
+	background: #fff7e0;
+	color: #2f1400;
+	border-radius: 8px;
+	padding: 10px 12px;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.card-game-page__category-select:focus {
+	outline: 2px solid rgba(193, 13, 0, 0.35);
+	outline-offset: 1px;
+}
+
+.card-game-page__category-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: flex-start;
+}
+
+.card-game-page__category-button {
+	border: 1px solid #d8d0c2;
+	background: #fff;
+	color: #8b6a4b;
+	font: inherit;
+	font-weight: 500;
+	text-transform: uppercase;
+	padding: 16px 22px;
+	min-height: 56px;
+	min-width: 210px;
+	border-radius: 2px;
+	cursor: pointer;
+	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.card-game-page__category-button:hover {
+	background: #faf6ef;
+	color: #6d5238;
+}
+
+.card-game-page__category-button.is-active {
+	background: #f4efe6;
+	border-color: #c9beaf;
+	color: #6d5238;
+}
+
+.one-piece-page__banner-link {
+	position: absolute;
+	right: calc(25% - 320px);
+	text-decoration: none;
+	border-radius: 14px;
+	overflow: hidden;
+	display: flex;
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+	transition: transform 0.3s ease;
+}
+
+.one-piece-page__banner-link:hover {
+	transform: scale(1.05);
+}
+
+.one-piece-page__banner-cartas-sueltas {
+	width: auto;
+	height: 180px;
+	display: block;
+	object-fit: contain;
+}
+
+.card-game-page__toolbar {
+	width: calc(100% - 40px);
+	margin: 18px auto 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.card-game-page__toolbar-left {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.card-game-page__toolbar-right {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.card-game-page__toolbar-label {
+	color: #2f1400;
+	font-weight: 700;
+	font-size: 0.98rem;
+}
+
+.card-game-page__toolbar-select {
+	border: 1px solid #c10d00;
+	background: #fff7e0;
+	color: #2f1400;
+	border-radius: 8px;
+	padding: 10px 12px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.card-game-page__toolbar-select:focus {
+	outline: 2px solid rgba(193, 13, 0, 0.35);
+	outline-offset: 1px;
+}
+
+.card-game-page__products {
+	width: calc(100% - 40px);
+	margin: 34px auto 0;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 18px;
+	box-sizing: border-box;
+}
+
+@media (max-width: 760px) {
+	.card-game-page {
+		padding: 16px 12px 26px;
+	}
+
+	.card-game-page__banner {
+		margin-bottom: 12px;
+		border-radius: 12px;
+	}
+
+	.card-game-page__top-content {
+		width: 100%;
+	}
+
+	.card-game-page__category-label {
+		margin-bottom: 6px;
+	}
+
+	.card-game-page__category-select {
+		width: 100%;
+	}
+
+	.one-piece-page__banner-link {
+		position: static;
+		margin-top: 16px;
+	}
+
+	.one-piece-page__banner-cartas-sueltas {
+		height: 150px;
+		width: auto;
+	}
+
+	.card-game-page__toolbar {
+		width: 100%;
+		flex-direction: column;
+		align-items: stretch;
+		margin-top: 14px;
+	}
+
+	.card-game-page__toolbar-left {
+		width: 100%;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.card-game-page__toolbar-right {
+		width: 100%;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.card-game-page__toolbar-select {
+		width: 100%;
+		max-width: 290px;
+	}
+
+	.card-game-page__products {
+		margin-top: 20px;
+		grid-template-columns: 1fr;
+	}
+}

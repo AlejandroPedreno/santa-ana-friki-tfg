@@ -12,6 +12,20 @@
 	align-items: center;
 	gap: 10px;
 	box-shadow: none;
+	position: relative;
+}
+
+.product-card__tag {
+	align-self: flex-start;
+	background: #111;
+	color: #fff;
+	border-radius: 999px;
+	padding: 6px 10px;
+	font-size: 0.72rem;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
 }
 
 .product-card__image {

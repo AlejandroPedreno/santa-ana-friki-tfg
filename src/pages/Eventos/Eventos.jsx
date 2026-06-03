@@ -23,7 +23,7 @@ function Eventos() {
 
           <div className="eventos-page__info">
             <p>
-              ¿Te apasionan los TCGs o tienes curiosidad por empezar? Este es tu sitio.
+              ¿Te apasionan los TCGs o tienes curiosidad por empezar? ¡Este es tu sitio!
             </p>
 
             <p>

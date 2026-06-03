@@ -124,10 +124,17 @@
   font-size: 1rem;
   padding: 8px 10px;
   border-radius: 8px;
+  position: relative;
 }
 
-.site-header__dropdown-menu a:not(:last-child) {
-  border-bottom: 1px solid rgba(193, 13, 0, 0.35);
+.site-header__dropdown-menu a:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 1px;
+  background: rgba(193, 13, 0, 0.5);
 }
 
 .site-header__dropdown-menu a:hover {

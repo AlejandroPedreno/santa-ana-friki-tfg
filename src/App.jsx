@@ -33,6 +33,10 @@ import Blokees from './pages/Maquetas/Blokees/Blokees.jsx'
 import DiyMiniature from './pages/Maquetas/DiyMiniature/DiyMiniature.jsx'
 import Italeri from './pages/Maquetas/Italeri/Italeri.jsx'
 import Revell from './pages/Maquetas/Revell/Revell.jsx'
+import Pinturas from './pages/Accesorios/Pinturas/Pinturas.jsx'
+import Fundas from './pages/Accesorios/Fundas/Fundas.jsx'
+import Tapetes from './pages/Accesorios/Tapetes/Tapetes.jsx'
+import Deckbox from './pages/Accesorios/Deckbox/Deckbox.jsx'
 import QuienesSomos from './pages/Información/QuienesSomos/QuienesSomos.jsx'
 import EnviosYDevoluciones from './pages/Información/EnviosYDevoluciones/EnviosYDevoluciones.jsx'
 import PoliticaDePrivacidadYCookies from './pages/Información/PoliticaDePrivacidadYCookies/PoliticaDePrivacidadYCookies.jsx'
@@ -83,6 +87,10 @@ function App() {
   const isDiyMiniatureRoute = path === '/maquetas/diy-miniature'
   const isItaleriRoute = path === '/maquetas/italeri'
   const isRevellRoute = path === '/maquetas/revell'
+  const isPinturasRoute = path === '/accesorios/pinturas'
+  const isFundasRoute = path === '/accesorios/fundas'
+  const isTapetesRoute = path === '/accesorios/tapetes'
+  const isDeckboxRoute = path === '/accesorios/deckbox'
   const isQuienesSomosRoute = path === '/informacion/quienes-somos'
   const isEnviosRoute = path === '/informacion/envios-y-devoluciones'
   const isPoliticaRoute = path === '/informacion/politica-de-privacidad-y-cookies'
@@ -135,6 +143,14 @@ function App() {
           <Italeri />
         ) : isRevellRoute ? (
           <Revell />
+        ) : isPinturasRoute ? (
+          <Pinturas />
+        ) : isFundasRoute ? (
+          <Fundas />
+        ) : isTapetesRoute ? (
+          <Tapetes />
+        ) : isDeckboxRoute ? (
+          <Deckbox />
         ) : isQuienesSomosRoute ? (
           <QuienesSomos />
         ) : isEnviosRoute ? (

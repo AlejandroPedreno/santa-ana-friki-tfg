@@ -10,11 +10,13 @@ function Header() {
 	const [isCardGamesOpen, setIsCardGamesOpen] = useState(false)
 	const [isMiniaturesOpen, setIsMiniaturesOpen] = useState(false)
 	const [isMaquetasOpen, setIsMaquetasOpen] = useState(false)
+	const [isAccesoriosOpen, setIsAccesoriosOpen] = useState(false)
 	const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
 	const searchInputRef = useRef(null)
 	const cardGamesRef = useRef(null)
 	const miniaturesRef = useRef(null)
 	const maquetasRef = useRef(null)
+	const accesoriosRef = useRef(null)
 	const accountMenuRef = useRef(null)
 	const { getTotalItems } = useContext(CartContext)
 	const cartCount = useMemo(() => getTotalItems(), [getTotalItems])
@@ -44,6 +46,10 @@ function Header() {
 				setIsMaquetasOpen(false)
 			}
 
+			if (!accesoriosRef.current?.contains(event.target)) {
+				setIsAccesoriosOpen(false)
+			}
+
 			if (!accountMenuRef.current?.contains(event.target)) {
 				setIsAccountMenuOpen(false)
 			}
@@ -54,6 +60,7 @@ function Header() {
 				setIsCardGamesOpen(false)
 				setIsMiniaturesOpen(false)
 				setIsMaquetasOpen(false)
+				setIsAccesoriosOpen(false)
 				setIsAccountMenuOpen(false)
 			}
 		}
@@ -167,8 +174,35 @@ function Header() {
 							<a href="/maquetas/revell" role="menuitem" onClick={() => setIsMaquetasOpen(false)}>Revell</a>
 						</div>
 					</div>
+					<div className="site-header__dropdown" ref={accesoriosRef}>
+						<button
+							type="button"
+							className="site-header__dropdown-toggle"
+							aria-haspopup="true"
+							aria-expanded={isAccesoriosOpen}
+							onClick={() => {
+								setIsAccesoriosOpen((prev) => !prev)
+								setIsCardGamesOpen(false)
+								setIsMiniaturesOpen(false)
+								setIsMaquetasOpen(false)
+							}}
+						>
+							Accesorios
+						</button>
+
+						<div
+							className={`site-header__dropdown-menu ${isAccesoriosOpen ? 'is-open' : ''}`}
+							role="menu"
+							aria-label="Accesorios"
+							aria-hidden={!isAccesoriosOpen}
+						>
+							<a href="/accesorios/pinturas" role="menuitem" onClick={() => setIsAccesoriosOpen(false)}>Pinturas</a>
+							<a href="/accesorios/fundas" role="menuitem" onClick={() => setIsAccesoriosOpen(false)}>Fundas</a>
+							<a href="/accesorios/tapetes" role="menuitem" onClick={() => setIsAccesoriosOpen(false)}>Tapetes</a>
+							<a href="/accesorios/deckbox" role="menuitem" onClick={() => setIsAccesoriosOpen(false)}>Deckbox</a>
+						</div>
+					</div>
 					<a href="/miniaturas/figuras-de-coleccion">Figuras de colección</a>
-					<a href="#">Accesorios</a>
 					<a href="/eventos">Eventos</a>
 				</nav>
 

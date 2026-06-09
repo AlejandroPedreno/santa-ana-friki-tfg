@@ -2,376 +2,155 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/db.php';
+// 1. Importamos las funciones base de conexión y respuestas JSON desde db.php
+require_once __DIR__ . '/db.php';
 
+// 2. Control de Preflight CORS (Vital para que React pueda comunicarse desde otro puerto)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    api_send_json(['ok' => true]);
+    $config = api_config();
+    header('Access-Control-Allow-Origin: ' . ($config['cors_origin'] ?? '*'));
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    http_response_code(200);
+    exit;
 }
 
+// 3. Capturamos el endpoint solicitado a través de la URL (por defecto responderá 'health')
+$endpoint = $_GET['endpoint'] ?? 'health';
+
 try {
+    // Inicializamos la conexión PDO
     $pdo = api_pdo();
-    $endpoint = $_GET['endpoint'] ?? 'catalog';
 
-    // Read JSON body for POST requests
-    $body = null;
-    if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH'])) {
-        $raw = file_get_contents('php://input');
-        $body = $raw ? json_decode($raw, true) : null;
-    }
+    // 4. Sistema de Enrutamiento Principal
+    switch ($endpoint) {
+        
+        // =================================================================
+        // FASE 1: ENDPOINTS DEL CATÁLOGO (COMPLETAMENTE OPERATIVOS)
+        // =================================================================
+        
+        case 'health':
+            // Endpoint de diagnóstico del estado de la API y la base de datos
+            api_send_json([
+                'status' => 'ok',
+                'message' => 'API de Santa Ana Friki activa',
+                'database' => 'Conexión con MySQL (Puerto 3308) establecida con éxito'
+            ]);
+            break;
 
-    // --- AUTH: register / login / profile
-    if ($endpoint === 'register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $data = $body ?? [];
-        $email = trim((string)($data['email'] ?? ''));
-        $password = (string)($data['password'] ?? '');
-        $first = trim((string)($data['first_name'] ?? ''));
+        case 'sections':
+            // Devuelve todas las secciones principales del catálogo ordenadas
+            $stmt = $pdo->query("SELECT id, name, slug, route_path FROM catalog_sections WHERE active = 1 ORDER BY sort_order ASC");
+            $sections = $stmt->fetchAll();
+            api_send_json($sections);
+            break;
 
-        if ($email === '' || $password === '') {
-            api_send_json(['ok' => false, 'error' => 'missing_fields'], 400);
-        }
-
-        $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare('INSERT INTO users (email, password_hash, first_name, created_at) VALUES (:email, :pw, :first, NOW())');
-        try {
-            $stmt->execute(['email' => $email, 'pw' => $hash, 'first' => $first]);
-        } catch (PDOException $e) {
-            api_send_json(['ok' => false, 'error' => 'duplicate_email'], 409);
-        }
-
-        $id = (int)$pdo->lastInsertId();
-        $token = api_generate_token($id);
-        api_send_json(['ok' => true, 'user_id' => $id, 'token' => $token]);
-    }
-
-    if ($endpoint === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $data = $body ?? [];
-        $email = trim((string)($data['email'] ?? ''));
-        $password = (string)($data['password'] ?? '');
-
-        $stmt = $pdo->prepare('SELECT id, password_hash FROM users WHERE email = :email LIMIT 1');
-        $stmt->execute(['email' => $email]);
-        $row = $stmt->fetch();
-        if (!$row || !password_verify($password, $row['password_hash'])) {
-            api_send_json(['ok' => false, 'error' => 'invalid_credentials'], 401);
-        }
-
-        $token = api_generate_token((int)$row['id']);
-        api_send_json(['ok' => true, 'token' => $token]);
-    }
-
-    if ($endpoint === 'profile') {
-        $token = api_get_bearer_token();
-        $userId = $token ? api_verify_token($token) : null;
-        if (!$userId) api_send_json(['ok' => false, 'error' => 'unauthorized'], 401);
-
-        $stmt = $pdo->prepare('SELECT id, email, role, first_name, last_name, created_at FROM users WHERE id = :id');
-        $stmt->execute(['id' => $userId]);
-        api_send_json(['ok' => true, 'data' => $stmt->fetch()]);
-    }
-
-    // --- CART endpoints (simple)
-    if ($endpoint === 'cart') {
-        $token = api_get_bearer_token();
-        $userId = $token ? api_verify_token($token) : null;
-        if (!$userId) api_send_json(['ok' => false, 'error' => 'unauthorized'], 401);
-
-        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-            // return cart and items
-            $stmt = $pdo->prepare('SELECT id, total, currency FROM carts WHERE user_id = :uid LIMIT 1');
-            $stmt->execute(['uid' => $userId]);
-            $cart = $stmt->fetch();
-            if (!$cart) {
-                api_send_json(['ok' => true, 'data' => ['cart' => null, 'items' => []]]);
-            }
-
-            $stmt = $pdo->prepare('SELECT ci.id, ci.product_id, ci.quantity, ci.unit_price, p.name, p.slug FROM cart_items ci LEFT JOIN products p ON p.id = ci.product_id WHERE ci.cart_id = :cid');
-            $stmt->execute(['cid' => $cart['id']]);
-            $items = $stmt->fetchAll();
-            api_send_json(['ok' => true, 'data' => ['cart' => $cart, 'items' => $items]]);
-        }
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // add item { product_id, quantity }
-            $data = $body ?? [];
-            $productId = (int)($data['product_id'] ?? 0);
-            $quantity = max(1, (int)($data['quantity'] ?? 1));
-
-            if ($productId <= 0) api_send_json(['ok' => false, 'error' => 'invalid_product'], 400);
-
-            // ensure cart exists
-            $stmt = $pdo->prepare('SELECT id FROM carts WHERE user_id = :uid LIMIT 1');
-            $stmt->execute(['uid' => $userId]);
-            $cart = $stmt->fetch();
-            if (!$cart) {
-                $stmt = $pdo->prepare('INSERT INTO carts (user_id, total, currency, created_at) VALUES (:uid, 0, "EUR", NOW())');
-                $stmt->execute(['uid' => $userId]);
-                $cartId = (int)$pdo->lastInsertId();
+        case 'subcategories':
+            // Devuelve las subcategorías. Permite filtrar por sección (?endpoint=subcategories&section=slug)
+            $sectionSlug = $_GET['section'] ?? null;
+            if ($sectionSlug) {
+                $stmt = $pdo->prepare("
+                    SELECT s.id, s.name, s.slug 
+                    FROM catalog_subcategories s
+                    JOIN catalog_sections cs ON s.section_id = cs.id
+                    WHERE cs.slug = :section_slug AND s.active = 1
+                    ORDER BY s.sort_order ASC
+                ");
+                $stmt->execute(['section_slug' => $sectionSlug]);
             } else {
-                $cartId = (int)$cart['id'];
+                $stmt = $pdo->query("SELECT id, section_id, name, slug FROM catalog_subcategories WHERE active = 1 ORDER BY sort_order ASC");
+            }
+            $subcategories = $stmt->fetchAll();
+            api_send_json($subcategories);
+            break;
+
+        case 'products':
+            // Devuelve los productos permitiendo filtrar por sección (?section=) y subcategoría (?subcategory=)
+            $sectionSlug = $_GET['section'] ?? null;
+            $subCategorySlug = $_GET['subcategory'] ?? null;
+            
+            $sql = "SELECT p.* FROM products p WHERE p.active = 1";
+            $params = [];
+
+            if ($sectionSlug) {
+                $sql .= " AND p.section_id = (SELECT id FROM catalog_sections WHERE slug = :section_slug)";
+                $params['section_slug'] = $sectionSlug;
             }
 
-            // get price
-            $stmt = $pdo->prepare('SELECT price FROM products WHERE id = :pid LIMIT 1');
-            $stmt->execute(['pid' => $productId]);
-            $p = $stmt->fetch();
-            if (!$p) api_send_json(['ok' => false, 'error' => 'product_not_found'], 404);
-
-            $unit = (float)$p['price'];
-            // upsert cart item
-            $stmt = $pdo->prepare('SELECT id, quantity FROM cart_items WHERE cart_id = :cid AND product_id = :pid LIMIT 1');
-            $stmt->execute(['cid' => $cartId, 'pid' => $productId]);
-            $existing = $stmt->fetch();
-            if ($existing) {
-                $newQty = (int)$existing['quantity'] + $quantity;
-                $stmt = $pdo->prepare('UPDATE cart_items SET quantity = :q, unit_price = :u, updated_at = NOW() WHERE id = :id');
-                $stmt->execute(['q' => $newQty, 'u' => $unit, 'id' => $existing['id']]);
-            } else {
-                $stmt = $pdo->prepare('INSERT INTO cart_items (cart_id, product_id, quantity, unit_price, created_at) VALUES (:cid, :pid, :q, :u, NOW())');
-                $stmt->execute(['cid' => $cartId, 'pid' => $productId, 'q' => $quantity, 'u' => $unit]);
+            if ($subCategorySlug) {
+                $sql .= " AND p.subcategory_id = (SELECT id FROM catalog_subcategories WHERE slug = :sub_slug)";
+                $params['sub_slug'] = $subCategorySlug;
             }
 
-            // recalc cart total
-            $stmt = $pdo->prepare('SELECT SUM(quantity * unit_price) AS total FROM cart_items WHERE cart_id = :cid');
-            $stmt->execute(['cid' => $cartId]);
-            $total = (float)($stmt->fetchColumn() ?? 0);
-            $stmt = $pdo->prepare('UPDATE carts SET total = :t, updated_at = NOW() WHERE id = :cid');
-            $stmt->execute(['t' => $total, 'cid' => $cartId]);
+            $sql .= " ORDER BY p.release_order ASC";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $products = $stmt->fetchAll();
+            
+            api_send_json($products);
+            break;
 
-            api_send_json(['ok' => true, 'cart_id' => $cartId, 'total' => $total]);
-        }
-    }
-
-    // --- Checkout
-    if ($endpoint === 'checkout' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $token = api_get_bearer_token();
-        $userId = $token ? api_verify_token($token) : null;
-        if (!$userId) api_send_json(['ok' => false, 'error' => 'unauthorized'], 401);
-
-        // get cart
-        $stmt = $pdo->prepare('SELECT id, total FROM carts WHERE user_id = :uid LIMIT 1');
-        $stmt->execute(['uid' => $userId]);
-        $cart = $stmt->fetch();
-        if (!$cart) api_send_json(['ok' => false, 'error' => 'empty_cart'], 400);
-
-        $stmt = $pdo->prepare('SELECT ci.product_id, ci.quantity, ci.unit_price, p.name FROM cart_items ci LEFT JOIN products p ON p.id = ci.product_id WHERE ci.cart_id = :cid');
-        $stmt->execute(['cid' => $cart['id']]);
-        $items = $stmt->fetchAll();
-        if (!$items) api_send_json(['ok' => false, 'error' => 'empty_cart'], 400);
-
-        // create order
-        $orderNumber = 'ORD-' . strtoupper(bin2hex(random_bytes(4)));
-        $pdo->beginTransaction();
-        try {
-            $stmt = $pdo->prepare('INSERT INTO orders (user_id, order_number, total, currency, status, created_at) VALUES (:uid, :on, :total, "EUR", "pending", NOW())');
-            $stmt->execute(['uid' => $userId, 'on' => $orderNumber, 'total' => $cart['total']]);
-            $orderId = (int)$pdo->lastInsertId();
-
-            $insertItem = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, subtotal, created_at) VALUES (:oid, :pid, :pname, :q, :u, :sub, NOW())');
-            foreach ($items as $it) {
-                $sub = (float)$it['quantity'] * (float)$it['unit_price'];
-                $insertItem->execute(['oid' => $orderId, 'pid' => $it['product_id'], 'pname' => $it['name'], 'q' => $it['quantity'], 'u' => $it['unit_price'], 'sub' => $sub]);
+        // =================================================================
+        // FASE 2: ESTRUCTURA PARA FUTURAS ITERACIONES (USUARIOS, CARROS, EVENTOS)
+        // =================================================================
+        
+        case 'register':
+            // Estructura preparada para el registro de usuarios (POST)
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
+            // Aquí iría la captura de datos de React, password_hash() e INSERT INTO users
+            api_send_json(['message' => 'Endpoint de registro preparado (Fase 2)'], 202);
+            break;
 
-            // clear cart
-            $stmt = $pdo->prepare('DELETE FROM cart_items WHERE cart_id = :cid');
-            $stmt->execute(['cid' => $cart['id']]);
-            $stmt = $pdo->prepare('UPDATE carts SET total = 0 WHERE id = :cid');
-            $stmt->execute(['cid' => $cart['id']]);
+        case 'login':
+            // Estructura preparada para la autenticación y uso de tokens JWT/Bearer
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
+            }
+            // Aquí se verificarían credenciales y se llamaría a api_generate_token($userId)
+            api_send_json(['message' => 'Endpoint de autenticación preparado (Fase 2)'], 202);
+            break;
 
-            $pdo->commit();
-            api_send_json(['ok' => true, 'order_id' => $orderId, 'order_number' => $orderNumber]);
-        } catch (Throwable $e) {
-            $pdo->rollBack();
-            api_send_json(['ok' => false, 'error' => 'checkout_failed', 'message' => $e->getMessage()], 500);
-        }
+        case 'events':
+            // Estructura preparada para listar la agenda de torneos de la comunidad
+            $stmt = $pdo->query("SELECT * FROM events ORDER BY event_date ASC");
+            $events = $stmt->fetchAll();
+            api_send_json([
+                'message' => 'Módulo de eventos conceptual (Fase 2)',
+                'data' => $events
+            ]);
+            break;
+
+        case 'checkout':
+            // Estructura preparada para procesar la compra segura verificando el token del usuario
+            $token = api_get_bearer_token();
+            $userId = $token ? api_verify_token($token) : null;
+            
+            if (!$userId) {
+                api_send_json(['error' => 'No autorizado. Se requiere token de sesión válido.'], 401);
+            }
+            // Aquí se pasaría el carrito temporal de cart_items a orders y order_items
+            api_send_json(['message' => 'Procesamiento de pedido preparado para el usuario ' . $userId], 202);
+            break;
+
+        default:
+            // Error en caso de solicitar un recurso que no existe en la API
+            api_send_json(['error' => 'Endpoint no encontrado'], 404);
+            break;
     }
 
-    // --- Orders list
-    if ($endpoint === 'orders' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $token = api_get_bearer_token();
-        $userId = $token ? api_verify_token($token) : null;
-        if (!$userId) api_send_json(['ok' => false, 'error' => 'unauthorized'], 401);
-
-        $stmt = $pdo->prepare('SELECT id, order_number, total, currency, status, created_at FROM orders WHERE user_id = :uid ORDER BY created_at DESC');
-        $stmt->execute(['uid' => $userId]);
-        $orders = $stmt->fetchAll();
-        api_send_json(['ok' => true, 'data' => $orders]);
-    }
-
-    // --- Events
-    if ($endpoint === 'events' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $stmt = $pdo->query('SELECT id, name, slug, description, game_type, event_date, location, max_participants, registration_fee, currency, status FROM events WHERE status IN ("open","draft") ORDER BY event_date ASC');
-        api_send_json(['ok' => true, 'data' => $stmt->fetchAll()]);
-    }
-
-    if ($endpoint === 'events_register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $token = api_get_bearer_token();
-        $userId = $token ? api_verify_token($token) : null;
-        if (!$userId) api_send_json(['ok' => false, 'error' => 'unauthorized'], 401);
-
-        $data = $body ?? [];
-        $eventId = (int)($data['event_id'] ?? 0);
-        if ($eventId <= 0) api_send_json(['ok' => false, 'error' => 'invalid_event'], 400);
-
-        $stmt = $pdo->prepare('INSERT INTO event_registrations (event_id, user_id, deck_list, status, registered_at) VALUES (:eid, :uid, :deck, "registered", NOW())');
-        try {
-            $stmt->execute(['eid' => $eventId, 'uid' => $userId, 'deck' => $data['deck_list'] ?? null]);
-            api_send_json(['ok' => true]);
-        } catch (PDOException $e) {
-            api_send_json(['ok' => false, 'error' => 'already_registered_or_error'], 409);
-        }
-    }
-
-
-    if ($endpoint === 'health') {
-        api_send_json([
-            'ok' => true,
-            'service' => 'santa-ana-friki-api',
-            'database' => true,
-        ]);
-    }
-
-    if ($endpoint === 'sections') {
-        $stmt = $pdo->query('SELECT id, name, slug, route_path, sort_order, active FROM catalog_sections ORDER BY sort_order ASC, id ASC');
-        api_send_json(['data' => $stmt->fetchAll()]);
-    }
-
-    if ($endpoint === 'subcategories') {
-        $sectionSlug = isset($_GET['section']) ? trim((string) $_GET['section']) : '';
-
-        $sql = 'SELECT cs.id, cs.section_id, cs.name, cs.slug, cs.sort_order, cs.active, s.slug AS section_slug FROM catalog_subcategories cs INNER JOIN catalog_sections s ON s.id = cs.section_id';
-        $params = [];
-
-        if ($sectionSlug !== '') {
-            $sql .= ' WHERE s.slug = :section_slug';
-            $params['section_slug'] = $sectionSlug;
-        }
-
-        $sql .= ' ORDER BY cs.sort_order ASC, cs.id ASC';
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-
-        api_send_json(['data' => $stmt->fetchAll()]);
-    }
-
-    if ($endpoint === 'products') {
-        $sectionSlug = isset($_GET['section']) ? trim((string) $_GET['section']) : '';
-        $subcategorySlug = isset($_GET['subcategory']) ? trim((string) $_GET['subcategory']) : '';
-        $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 200;
-        $offset = isset($_GET['offset']) ? max(0, (int) $_GET['offset']) : 0;
-
-        $sql = <<<SQL
-SELECT
-    p.id,
-    p.section_id,
-    p.subcategory_id,
-    p.legacy_id,
-    p.name,
-    p.slug,
-    p.image_path,
-    p.price,
-    p.currency,
-    p.release_order,
-    p.in_stock,
-    p.stock,
-    p.active,
-    p.source_file,
-    s.slug AS section_slug,
-    s.name AS section_name,
-    sc.slug AS subcategory_slug,
-    sc.name AS subcategory_name
-FROM products p
-INNER JOIN catalog_sections s ON s.id = p.section_id
-LEFT JOIN catalog_subcategories sc ON sc.id = p.subcategory_id
-SQL;
-        $conditions = [];
-        $params = [];
-
-        if ($sectionSlug !== '') {
-            $conditions[] = 's.slug = :section_slug';
-            $params['section_slug'] = $sectionSlug;
-        }
-
-        if ($subcategorySlug !== '') {
-            $conditions[] = 'sc.slug = :subcategory_slug';
-            $params['subcategory_slug'] = $subcategorySlug;
-        }
-
-        if ($conditions) {
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
-        }
-
-        $sql .= ' ORDER BY p.release_order DESC, p.id ASC LIMIT :limit OFFSET :offset';
-
-        $stmt = $pdo->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
-        }
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
-
-        api_send_json(['data' => $stmt->fetchAll()]);
-    }
-
-    $sectionSlug = isset($_GET['section']) ? trim((string) $_GET['section']) : '';
-    $subcategorySlug = isset($_GET['subcategory']) ? trim((string) $_GET['subcategory']) : '';
-
-    $sql = <<<SQL
-SELECT
-    p.id,
-    p.section_id,
-    p.subcategory_id,
-    p.legacy_id,
-    p.name,
-    p.slug,
-    p.image_path,
-    p.price,
-    p.currency,
-    p.release_order,
-    p.in_stock,
-    p.stock,
-    p.active,
-    p.source_file,
-    s.slug AS section_slug,
-    s.name AS section_name,
-    sc.slug AS subcategory_slug,
-    sc.name AS subcategory_name
-FROM products p
-INNER JOIN catalog_sections s ON s.id = p.section_id
-LEFT JOIN catalog_subcategories sc ON sc.id = p.subcategory_id
-SQL;
-    $conditions = [];
-    $params = [];
-
-    if ($sectionSlug !== '') {
-        $conditions[] = 's.slug = :section_slug';
-        $params['section_slug'] = $sectionSlug;
-    }
-
-    if ($subcategorySlug !== '') {
-        $conditions[] = 'sc.slug = :subcategory_slug';
-        $params['subcategory_slug'] = $subcategorySlug;
-    }
-
-    if ($conditions) {
-        $sql .= ' WHERE ' . implode(' AND ', $conditions);
-    }
-
-    $sql .= ' ORDER BY s.sort_order ASC, sc.sort_order ASC, p.release_order DESC, p.id ASC';
-
-    $stmt = $pdo->prepare($sql);
-    foreach ($params as $key => $value) {
-        $stmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
-    }
-    $stmt->execute();
-
-    api_send_json(['data' => $stmt->fetchAll()]);
-} catch (Throwable $throwable) {
+} catch (PDOException $e) {
+    // Captura y gestión de errores de la base de datos (ej: XAMPP apagado o puerto bloqueado)
     api_send_json([
-        'ok' => false,
-        'error' => 'Internal Server Error',
-        'message' => $throwable->getMessage(),
+        'error' => 'Error de comunicación con la base de datos',
+        'message' => $e->getMessage()
+    ], 500);
+} catch (Exception $e) {
+    // Captura de cualquier otra excepción general del sistema
+    api_send_json([
+        'error' => 'Error interno del servidor',
+        'message' => $e->getMessage()
     ], 500);
 }

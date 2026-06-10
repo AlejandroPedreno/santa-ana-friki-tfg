@@ -34,7 +34,7 @@ try {
             api_send_json([
                 'status' => 'ok',
                 'message' => 'API de Santa Ana Friki activa',
-                'database' => 'Conexión con MySQL (Puerto 3308) establecida con éxito'
+                'database' => 'Conexión con MySQL (Puerto 3306) establecida con éxito'
             ]);
             break;
 

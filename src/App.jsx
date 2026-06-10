@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { obtenerProductosCatalogo } from './services/catalogo/catalogoApi'
 
 //Estilos
 import './App.css'
@@ -51,34 +52,18 @@ function App() {
   // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
   // NUEVO: Estado para almacenar el resultado de la conexión a la API
-  const [apiStatus, setApiStatus] = useState('Comprobando conexión con la base de datos...')
+  const [estadoApi, setEstadoApi] = useState('Comprobando conexión con la base de datos...')
 
  // NUEVO: Efecto para probar la conexión nada más cargar la app
   useEffect(() => {
-    fetch('http://localhost/api/index.php?endpoint=products')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('La red no respondió correctamente');
-        }
-        return response.json();
-      })
-      .then((json) => {
-        console.log("✅ ÉXITO - Datos recibidos desde MySQL:", json);
-        
-        // Comprobamos si es un array directo o si viene dentro de una propiedad 'data'
-        const productosArray = Array.isArray(json) ? json : (json.data || []);
-        
-        // Si el JSON contiene un error de MySQL, lo mostramos
-        if (json.error) {
-          setApiStatus(`❌ Conectado, pero MySQL dio un error: ${json.error}`);
-        } else {
-          setApiStatus(`✅ Conectado al Backend. Se han recibido ${productosArray.length} productos.`);
-        }
+    obtenerProductosCatalogo({ limit: 200 })
+      .then((productos) => {
+        setEstadoApi(`✅ Conectado al Backend. Se han recibido ${productos.length} productos.`)
       })
       .catch((error) => {
-        console.error("❌ ERROR al conectar con la API:", error);
-        setApiStatus('❌ Error de conexión con el Backend. Comprueba que XAMPP está encendido.');
-      });
+        console.error('❌ ERROR al conectar con la API:', error)
+        setEstadoApi('❌ Error de conexión con el Backend. Comprueba que XAMPP está encendido.')
+      })
   }, []);
 
   // Efecto original del scroll
@@ -142,7 +127,7 @@ function App() {
   {/* a ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ */}
         {/* NUEVO: Banner temporal para comprobar la API */}
         <div style={{ backgroundColor: '#222', color: '#fff', textAlign: 'center', padding: '12px', position: 'sticky', top: 0, zIndex: 9999 }}>
-          <strong>Estado de tu API PHP:</strong> {apiStatus} <br/>
+          <strong>Estado de tu API PHP:</strong> {estadoApi} <br/>
           <small style={{ color: '#aaa' }}>(Pulsa F12, ve a la pestaña "Consola" y despliega el Array para ver los datos de MySQL)</small>
         </div>
 

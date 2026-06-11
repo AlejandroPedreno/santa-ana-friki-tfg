@@ -11,6 +11,7 @@ import Footer from './components/Footer/Footer.jsx'
 
 //Context
 import { CartProvider } from './context/CartContext.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
 
 //Páginas
 import Home from './pages/Home/Home.jsx'
@@ -121,8 +122,9 @@ function App() {
   const isEventosRoute = path === '/eventos'
 
   return (
-    <CartProvider>
-      <>
+    <AuthProvider>
+      <CartProvider>
+        <>
       
   {/* a ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ */}
         {/* NUEVO: Banner temporal para comprobar la API */}
@@ -213,8 +215,9 @@ function App() {
         >
           <img src={topImage} alt="Subir" />
         </button>
-      </>
-    </CartProvider>
+        </>
+      </CartProvider>
+    </AuthProvider>
   )
 }
 

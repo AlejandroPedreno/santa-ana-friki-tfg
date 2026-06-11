@@ -1,7 +1,7 @@
-const URL_BASE_API = import.meta.env.VITE_API_BASE_URL || 'http://localhost/api/index.php'
+const URL_BASE_API = import.meta.env.VITE_API_BASE_URL || '/api/index.php'
 
 async function peticionCatalogo(endpoint, parametros = {}) {
-  const url = new URL(URL_BASE_API)
+  const url = new URL(URL_BASE_API, window.location.origin)
   url.searchParams.set('endpoint', endpoint)
 
   Object.entries(parametros).forEach(([clave, valor]) => {

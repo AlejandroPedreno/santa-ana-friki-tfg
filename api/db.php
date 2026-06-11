@@ -13,7 +13,7 @@ function api_config(): array
     return $config;
 }
 
-function api_send_json(mixed $data, int $statusCode = 200): never
+function api_send_json($data, int $statusCode = 200): void
 {
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
@@ -25,6 +25,21 @@ function api_send_json(mixed $data, int $statusCode = 200): never
 
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+function api_request_body(): array
+{
+    $rawInput = file_get_contents('php://input');
+
+    if (is_string($rawInput) && trim($rawInput) !== '') {
+        $decoded = json_decode($rawInput, true);
+
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    return $_POST;
 }
 
 function api_pdo(): PDO

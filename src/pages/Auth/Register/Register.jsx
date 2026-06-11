@@ -1,15 +1,29 @@
-import { useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Header from '../../../components/Header/Header.jsx'
 import Footer from '../../../components/Footer/Footer.jsx'
+import { AuthContext } from '../../../context/AuthContext.jsx'
+import { registrarUsuario } from '../../../services/auth/authApi.js'
 import './Register.css'
 
 function Register() {
+  const { signIn, isAuthenticated } = useContext(AuthContext)
   const [passwordError, setPasswordError] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event) => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      window.location.assign('/')
+    }
+  }, [isAuthenticated])
+
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
+    const name = String(formData.get('name') ?? '').trim()
+    const email = String(formData.get('email') ?? '').trim()
+    const phone = String(formData.get('phone') ?? '').trim()
     const password = String(formData.get('password') ?? '')
     const confirmPassword = String(formData.get('confirmPassword') ?? '')
 
@@ -19,7 +33,18 @@ function Register() {
     }
 
     setPasswordError('')
-    alert('Registro en desarrollo')
+    setErrorMessage('')
+    setIsSubmitting(true)
+
+    try {
+      const response = await registrarUsuario({ name, email, phone, password })
+      signIn(response)
+      window.location.assign('/')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'No se ha podido completar el registro.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -77,6 +102,8 @@ function Register() {
 
             {passwordError && <p className="auth-form__error">{passwordError}</p>}
 
+            {errorMessage && <p className="auth-form__error">{errorMessage}</p>}
+
             <label className="auth-form__checkbox">
               <input
                 id="register-policies"
@@ -87,7 +114,9 @@ function Register() {
               <span>Acepto la <a href="/informacion/politica-de-privacidad-y-cookies" target="_blank" rel="noopener noreferrer">Política de privacidad y cookies</a></span>
             </label>
 
-            <button type="submit" className="auth-form__submit">Crear cuenta</button>
+            <button type="submit" className="auth-form__submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta'}
+            </button>
           </form>
 
           <p className="auth-card__helper">

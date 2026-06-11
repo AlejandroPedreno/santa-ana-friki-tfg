@@ -280,6 +280,32 @@
   background: rgba(193, 13, 0, 0.1);
 }
 
+.site-header__account-summary {
+  color: #8a1600;
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid rgba(193, 13, 0, 0.35);
+}
+
+.site-header__account-action {
+  border: 0;
+  background: transparent;
+  color: #8a1600;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.site-header__account-action:hover {
+  background: rgba(193, 13, 0, 0.1);
+}
+
 .site-header__cart-badge {
   position: absolute;
   top: -4px;

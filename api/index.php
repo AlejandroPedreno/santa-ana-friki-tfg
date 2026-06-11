@@ -96,21 +96,111 @@ try {
         // =================================================================
         
         case 'register':
-            // Estructura preparada para el registro de usuarios (POST)
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
-            // Aquí iría la captura de datos de React, password_hash() e INSERT INTO users
-            api_send_json(['message' => 'Endpoint de registro preparado (Fase 2)'], 202);
+
+            $body = api_request_body();
+            $name = trim((string)($body['name'] ?? ''));
+            $email = trim((string)($body['email'] ?? ''));
+            $phone = trim((string)($body['phone'] ?? ''));
+            $password = (string)($body['password'] ?? '');
+
+            if ($name === '' || $email === '' || $password === '') {
+                api_send_json(['error' => 'Faltan datos obligatorios para registrar el usuario.'], 422);
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                api_send_json(['error' => 'El correo electrónico no es válido.'], 422);
+            }
+
+            if (strlen($password) < 8) {
+                api_send_json(['error' => 'La contraseña debe tener al menos 8 caracteres.'], 422);
+            }
+
+            $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+            $stmt->execute(['email' => $email]);
+
+            if ($stmt->fetch()) {
+                api_send_json(['error' => 'Ya existe una cuenta con ese correo electrónico.'], 409);
+            }
+
+            $nameParts = preg_split('/\s+/', $name, 2, PREG_SPLIT_NO_EMPTY) ?: [];
+            $firstName = $nameParts[0] ?? $name;
+            $lastName = $nameParts[1] ?? null;
+
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+            $stmt = $pdo->prepare('
+                INSERT INTO users (email, password_hash, role, first_name, last_name, phone, active)
+                VALUES (:email, :password_hash, :role, :first_name, :last_name, :phone, 1)
+            ');
+            $stmt->execute([
+                'email' => $email,
+                'password_hash' => $passwordHash,
+                'role' => 'user',
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'phone' => $phone !== '' ? $phone : null,
+            ]);
+
+            $userId = (int)$pdo->lastInsertId();
+            $sessionToken = api_generate_token($userId);
+
+            api_send_json([
+                'message' => 'Usuario registrado correctamente.',
+                'token' => $sessionToken,
+                'user' => [
+                    'id' => $userId,
+                    'email' => $email,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'phone' => $phone,
+                    'role' => 'user',
+                ],
+            ], 201);
             break;
 
         case 'login':
-            // Estructura preparada para la autenticación y uso de tokens JWT/Bearer
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
-            // Aquí se verificarían credenciales y se llamaría a api_generate_token($userId)
-            api_send_json(['message' => 'Endpoint de autenticación preparado (Fase 2)'], 202);
+
+            $body = api_request_body();
+            $email = trim((string)($body['email'] ?? ''));
+            $password = (string)($body['password'] ?? '');
+
+            if ($email === '' || $password === '') {
+                api_send_json(['error' => 'Debes indicar correo electrónico y contraseña.'], 422);
+            }
+
+            $stmt = $pdo->prepare('
+                SELECT id, email, password_hash, role, first_name, last_name, phone
+                FROM users
+                WHERE email = :email AND active = 1
+                LIMIT 1
+            ');
+            $stmt->execute(['email' => $email]);
+            $user = $stmt->fetch();
+
+            if (!$user || !password_verify($password, $user['password_hash'])) {
+                api_send_json(['error' => 'Credenciales incorrectas.'], 401);
+            }
+
+            $sessionToken = api_generate_token((int)$user['id']);
+
+            api_send_json([
+                'message' => 'Sesión iniciada correctamente.',
+                'token' => $sessionToken,
+                'user' => [
+                    'id' => (int)$user['id'],
+                    'email' => $user['email'],
+                    'first_name' => $user['first_name'],
+                    'last_name' => $user['last_name'],
+                    'phone' => $user['phone'],
+                    'role' => $user['role'],
+                ],
+            ]);
             break;
 
         case 'events':

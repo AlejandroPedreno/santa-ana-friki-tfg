@@ -445,7 +445,8 @@ function CheckoutModal() {
                       <td>{item.quantity}</td>
                       <td>{item.price}</td>
                       <td>
-                        {(parseFloat(item.price.replace('EUR', '').trim()) * item.quantity).toFixed(2)}€
+                        {/* El total de cada línea se obtiene del precio ya normalizado más la cantidad elegida. */}
+                        {(parseFloat(item.price.replace(/EUR|€/g, '').trim()) * item.quantity).toFixed(2)}€
                       </td>
                     </tr>
                   ))}

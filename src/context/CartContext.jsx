@@ -1,10 +1,12 @@
 import { createContext, useState, useCallback, useEffect } from 'react'
+import { parsearPrecioEUR } from '../utils/catalogo.js'
 
 export const CartContext = createContext()
 
 const CART_STORAGE_KEY = 'santa-ana-friki-cart'
 
 const loadCartFromStorage = () => {
+  // Lee el carrito guardado y devuelve un array vacío si no existe o está corrupto.
   try {
     const storedCart = localStorage.getItem(CART_STORAGE_KEY)
     if (!storedCart) {
@@ -22,10 +24,12 @@ export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(loadCartFromStorage)
 
   useEffect(() => {
+    // Cada cambio del carrito se guarda en localStorage para mantener la sesión del usuario.
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems))
   }, [cartItems])
 
   const addToCart = useCallback((product) => {
+    // Si el producto ya existe en el carrito, solo incrementa la cantidad.
     setCartItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id)
       
@@ -48,6 +52,7 @@ export function CartProvider({ children }) {
   }, [])
 
   const updateQuantity = useCallback((productId, quantity) => {
+    // Si la cantidad baja a 0, el producto se elimina automáticamente.
     if (quantity <= 0) {
       removeFromCart(productId)
       return
@@ -63,17 +68,19 @@ export function CartProvider({ children }) {
   }, [removeFromCart])
 
   const clearCart = useCallback(() => {
+    // Vacía el carrito completo de una sola vez.
     setCartItems([])
   }, [])
 
   const getTotalItems = useCallback(() => {
+    // Suma la cantidad total de unidades para el contador del icono del carrito.
     return cartItems.reduce((total, item) => total + item.quantity, 0)
   }, [cartItems])
 
   const getTotalPrice = useCallback(() => {
+    // Calcula el importe total usando el precio normalizado de cada producto.
     return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.price.replace('EUR', '').trim())
-      return total + price * item.quantity
+      return total + parsearPrecioEUR(item.price) * item.quantity
     }, 0)
   }, [cartItems])
 

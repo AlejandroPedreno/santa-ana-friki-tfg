@@ -16,6 +16,7 @@ function Cart() {
   const freeShippingProgress = Math.min((subtotal / freeShippingThreshold) * 100, 100)
   const hasFreeShipping = amountRemainingForFreeShipping === 0
 
+  // Si no hay productos en el carrito, se muestra la pantalla vacía y se evita renderizar el resto.
   if (cartItems.length === 0) {
     return (
       <>
@@ -87,8 +88,10 @@ function Cart() {
                     <div className="cart-page__item-total">
                       <p className="cart-page__item-total-label">Subtotal</p>
                       <p className="cart-page__item-subtotal">
-                        {(parseFloat(item.price.replace('EUR', '').trim()) * item.quantity).toFixed(2)}€
+                        {/* El subtotal se calcula a partir del precio normalizado y la cantidad del artículo. */}
+                        {(parseFloat(item.price.replace(/EUR|€/g, '').trim()) * item.quantity).toFixed(2)}€
                       </p>
+                      {/* Se muestra el stock disponible real para limitar la cantidad comprable. */}
                       <p className="cart-page__item-stock">Stock disponible: {Number(item.stock ?? item.quantity)}</p>
                     </div>
 

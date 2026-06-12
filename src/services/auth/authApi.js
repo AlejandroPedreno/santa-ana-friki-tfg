@@ -1,6 +1,7 @@
 const URL_BASE_API = import.meta.env.VITE_API_BASE_URL || '/api/index.php'
 
 async function peticionAuth(endpoint, metodo, datos = {}) {
+  // Petición JSON estándar para login y registro.
   const url = new URL(URL_BASE_API, window.location.origin)
   url.searchParams.set('endpoint', endpoint)
 
@@ -22,9 +23,11 @@ async function peticionAuth(endpoint, metodo, datos = {}) {
 }
 
 export function registrarUsuario(datos) {
+  // Registra una cuenta nueva.
   return peticionAuth('register', 'POST', datos)
 }
 
 export function iniciarSesion(datos) {
+  // Inicia sesión y devuelve token + datos del usuario.
   return peticionAuth('login', 'POST', datos)
 }

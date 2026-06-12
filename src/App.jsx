@@ -53,12 +53,11 @@ import SearchResults from './pages/SearchResults/SearchResults.jsx'
 
 function App() {
   const [showScrollTop, setShowScrollTop] = useState(false)
-  // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-  // NUEVO: Estado para almacenar el resultado de la conexión a la API
+  // Estado visible en la barra superior para comprobar si el backend responde.
   const [estadoApi, setEstadoApi] = useState('Comprobando conexión con la base de datos...')
 
- // NUEVO: Efecto para probar la conexión nada más cargar la app
+  // Al cargar la aplicación, se hace una petición ligera para verificar que la API está viva.
   useEffect(() => {
     obtenerProductosCatalogo({ limit: 200 })
       .then((productos) => {
@@ -70,9 +69,7 @@ function App() {
       })
   }, []);
 
-  // Efecto original del scroll
-  
-  // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  // Muestra el botón de volver arriba cuando el usuario baja la página.
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 220)
@@ -90,6 +87,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Se resuelve la ruta actual para decidir qué página renderizar sin usar un router externo.
   const path = window.location.pathname.replace(/\/$/, '') || '/'
   const isDragonBallRoute = path === '/juegos-de-cartas/dragon-ball-fusion-world'
   const isLorcanaRoute = path === '/juegos-de-cartas/lorcana'
@@ -131,15 +129,11 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <>
-      
-  {/* a ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ */}
-        {/* NUEVO: Banner temporal para comprobar la API */}
+          {/* Banner de diagnóstico para ver rápidamente si la API responde. */}
         <div style={{ backgroundColor: '#222', color: '#fff', textAlign: 'center', padding: '12px', position: 'sticky', top: 0, zIndex: 9999 }}>
           <strong>Estado de tu API PHP:</strong> {estadoApi} <br/>
           <small style={{ color: '#aaa' }}>(Pulsa F12, ve a la pestaña "Consola" y despliega el Array para ver los datos de MySQL)</small>
         </div>
-
-          {/* a ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ */}
 
 
         {isDragonBallRoute ? (

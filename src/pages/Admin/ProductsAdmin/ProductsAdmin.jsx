@@ -2,6 +2,7 @@ import { useContext, useDeferredValue, useEffect, useState } from 'react'
 import Header from '../../../components/Header/Header.jsx'
 import Footer from '../../../components/Footer/Footer.jsx'
 import { AuthContext } from '../../../context/AuthContext.jsx'
+import { formatearPrecioEUR, normalizarStock } from '../../../utils/catalogo.js'
 import { obtenerSeccionesCatalogo, obtenerSubcategoriasCatalogo } from '../../../services/catalogo/catalogoApi.js'
 import { actualizarProductoAdmin, crearProductoAdmin, eliminarProductoAdmin, obtenerProductosAdmin } from '../../../services/admin/adminProductsApi.js'
 import './ProductsAdmin.css'
@@ -43,12 +44,14 @@ function ProductsAdmin() {
   const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
+    // Si no hay sesión válida, el administrador vuelve al login.
     if (!isAuthenticated) {
       window.location.assign('/login')
     }
   }, [isAuthenticated])
 
   useEffect(() => {
+    // Solo cargamos datos de administración cuando el usuario sí es admin.
     if (!isAdmin) {
       return
     }
@@ -68,6 +71,7 @@ function ProductsAdmin() {
   }, [isAdmin, token])
 
   useEffect(() => {
+    // Al cambiar la sección del formulario, se cargan sus subcategorías asociadas.
     if (!formData.section_id) {
       setSubcategories([])
       return
@@ -79,6 +83,7 @@ function ProductsAdmin() {
   }, [formData.section_id, sections])
 
   const handleSelectProduct = (product) => {
+    // Rellena el formulario con los datos del producto seleccionado para editarlo.
     setFormData({
       id: product.id,
       section_id: product.section_id,
@@ -97,6 +102,7 @@ function ProductsAdmin() {
   }
 
   const handleChange = (event) => {
+    // Mantiene sincronizado el estado del formulario con cada campo.
     const { name, value, type, checked, files } = event.target
     const nextValue = type === 'checkbox' ? checked : (type === 'file' ? files?.[0] ?? null : value)
 
@@ -107,6 +113,7 @@ function ProductsAdmin() {
   }
 
   const refreshProducts = async () => {
+    // Vuelve a pedir la lista completa tras crear, editar o borrar.
     const response = await obtenerProductosAdmin(token)
     setProducts(response.data || [])
   }
@@ -118,6 +125,7 @@ function ProductsAdmin() {
     setIsSaving(true)
 
     try {
+      // El formulario se envía como FormData porque admite imagen subida.
       const isEditing = Boolean(formData.id)
       const payload = new FormData()
 
@@ -156,6 +164,7 @@ function ProductsAdmin() {
   }
 
   const handleDelete = async (productId) => {
+    // Se pide confirmación antes de eliminar un producto del catálogo.
     if (!window.confirm('¿Seguro que quieres eliminar este producto?')) {
       return
     }
@@ -177,6 +186,7 @@ function ProductsAdmin() {
 
   const normalizedSearch = normalizeText(deferredSearchTerm)
   const filteredProducts = products.filter((product) => {
+    // La búsqueda coincide por nombre, sección, subcategoría, slug o identificadores internos.
     if (!normalizedSearch) {
       return true
     }
@@ -231,10 +241,19 @@ function ProductsAdmin() {
                 Nombre
                 <input name="name" type="text" value={formData.name} onChange={handleChange} required />
               </label>
-              <label>
-                Imagen
-                <input name="image_file" type="file" accept="image/*" onChange={handleChange} />
-              </label>
+              <div className="admin-products-form__file-field">
+                <label htmlFor="image_file">Imagen</label>
+                <label className="admin-products-form__file-input" htmlFor="image_file">
+                  <input
+                    id="image_file"
+                    name="image_file"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                  />
+                  <span>{formData.image_file ? formData.image_file.name : 'Seleccionar archivo'}</span>
+                </label>
+              </div>
               <label>
                 Precio
                 <input name="price" type="number" min="0" step="0.01" value={formData.price} onChange={handleChange} required />
@@ -282,9 +301,10 @@ function ProductsAdmin() {
                 filteredProducts.map((product) => (
                   <article key={product.id} className="admin-products-list__item">
                     <div>
+                      {/* La ficha resume nombre, categoría, stock real y precio formateado. */}
                       <strong>{product.name}</strong>
                       <p>{product.section_name}{product.subcategory_name ? ` · ${product.subcategory_name}` : ''}</p>
-                      <small>ID {product.id} · Legacy {product.legacy_id} · {product.price} {product.currency}</small>
+                      <small>Stock {normalizarStock(product.stock)} · {formatearPrecioEUR(product.price)}</small>
                     </div>
                     <div className="admin-products-list__buttons">
                       <button type="button" onClick={() => handleSelectProduct(product)}>Editar</button>

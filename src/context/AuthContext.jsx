@@ -3,6 +3,7 @@ import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 const AUTH_STORAGE_KEY = 'santa-ana-friki-auth'
 
 const loadAuthFromStorage = () => {
+  // Recupera la sesión guardada y evita romper la app si el localStorage está vacío o da error.
   try {
     const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY)
 
@@ -37,6 +38,7 @@ export function AuthProvider({ children }) {
   const [authState, setAuthState] = useState(loadAuthFromStorage)
 
   useEffect(() => {
+    // La sesión se persiste solo cuando existe token; si no, se limpia el almacenamiento.
     if (authState.token) {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState))
       return
@@ -46,6 +48,7 @@ export function AuthProvider({ children }) {
   }, [authState])
 
   useEffect(() => {
+    // Sincroniza el login entre pestañas cuando cambia el localStorage.
     const handleStorage = (event) => {
       if (event.key === AUTH_STORAGE_KEY) {
         setAuthState(loadAuthFromStorage())
@@ -60,6 +63,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signIn = useCallback((session) => {
+    // Guarda en contexto la sesión devuelta por el backend.
     setAuthState({
       user: session?.user ?? null,
       token: session?.token ?? null,
@@ -67,10 +71,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = useCallback(() => {
+    // Limpia sesión y token al cerrar sesión.
     setAuthState({ user: null, token: null })
   }, [])
 
   const value = useMemo(() => ({
+    // Derivados útiles para que el resto de la app no repita comprobaciones.
     user: authState.user,
     token: authState.token,
     isAuthenticated: Boolean(authState.token),

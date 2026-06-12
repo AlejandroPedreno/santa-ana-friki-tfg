@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 function api_config(): array
 {
+    // Carga la configuración una sola vez para reutilizarla durante toda la petición.
     static $config = null;
 
     if ($config === null) {
@@ -15,6 +16,7 @@ function api_config(): array
 
 function api_send_json($data, int $statusCode = 200): void
 {
+    // Respuesta JSON estándar con cabeceras CORS y código HTTP.
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
 
@@ -29,6 +31,7 @@ function api_send_json($data, int $statusCode = 200): void
 
 function api_request_body(): array
 {
+    // Primero intenta leer JSON puro y, si no existe, usa los datos clásicos de formulario.
     $rawInput = file_get_contents('php://input');
 
     if (is_string($rawInput) && trim($rawInput) !== '') {
@@ -44,6 +47,7 @@ function api_request_body(): array
 
 function api_pdo(): PDO
 {
+    // Abre la conexión PDO con el formato que espera el proyecto.
     $config = api_config();
     $dsn = sprintf(
         'mysql:host=%s;port=%d;dbname=%s;charset=%s',
@@ -62,6 +66,7 @@ function api_pdo(): PDO
 
 function api_get_bearer_token(): ?string
 {
+    // Lee el token Bearer de la cabecera Authorization.
     $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['Authorization'] ?? null;
     if (!$auth) return null;
 
@@ -74,6 +79,7 @@ function api_get_bearer_token(): ?string
 
 function api_generate_token(int $userId, int $ttl = 3600): string
 {
+    // Genera un token simple firmado con caducidad para sesiones ligeras.
     $config = api_config();
     $secret = $config['api_secret'] ?? 'change_me';
     $expiry = time() + $ttl;
@@ -86,6 +92,7 @@ function api_generate_token(int $userId, int $ttl = 3600): string
 
 function api_verify_token(string $token): ?int
 {
+    // Comprueba firma y fecha de caducidad antes de devolver el ID de usuario.
     $config = api_config();
     $secret = $config['api_secret'] ?? 'change_me';
 
@@ -107,6 +114,7 @@ function api_verify_token(string $token): ?int
 
 function api_authenticated_user(?string $token = null): ?array
 {
+    // Resuelve el usuario asociado al token actual para reutilizarlo en endpoints protegidos.
     $tokenValue = $token ?? api_get_bearer_token();
     if (!$tokenValue) {
         return null;
@@ -127,6 +135,7 @@ function api_authenticated_user(?string $token = null): ?array
 
 function api_require_admin(): array
 {
+    // Bloquea el acceso si no hay sesión válida o si el rol no es administrador.
     $user = api_authenticated_user();
 
     if (!$user) {
@@ -142,6 +151,7 @@ function api_require_admin(): array
 
 function api_slugify(string $value): string
 {
+    // Convierte texto libre en un slug apto para URLs y nombres internos.
     $value = trim(mb_strtolower($value));
     $value = preg_replace('/[^a-z0-9]+/u', '-', $value) ?? $value;
     $value = trim($value, '-');
@@ -151,6 +161,7 @@ function api_slugify(string $value): string
 
 function api_store_product_image(array $file): ?string
 {
+    // Guarda la imagen subida en la carpeta pública de productos y devuelve su ruta.
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
         return null;
     }

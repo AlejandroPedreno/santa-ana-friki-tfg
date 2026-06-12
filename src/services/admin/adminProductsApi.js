@@ -1,6 +1,7 @@
 const URL_BASE_API = import.meta.env.VITE_API_BASE_URL || '/api/index.php'
 
 async function peticionAdmin(endpoint, metodo, token, datos = {}, parametros = {}) {
+  // Construye peticiones autenticadas para las operaciones del panel admin.
   const url = new URL(URL_BASE_API, window.location.origin)
   url.searchParams.set('endpoint', endpoint)
 
@@ -41,17 +42,21 @@ async function peticionAdmin(endpoint, metodo, token, datos = {}, parametros = {
 }
 
 export function obtenerProductosAdmin(token) {
+  // Devuelve la lista completa de productos para edición y borrado.
   return peticionAdmin('admin-products', 'GET', token)
 }
 
 export function crearProductoAdmin(token, datos) {
+  // Crea un producto nuevo.
   return peticionAdmin('admin-products', 'POST', token, datos)
 }
 
 export function actualizarProductoAdmin(token, datos) {
+  // Actualiza un producto existente.
   return peticionAdmin('admin-products', 'PUT', token, datos)
 }
 
 export function eliminarProductoAdmin(token, productId) {
+  // Elimina un producto por su ID interno.
   return peticionAdmin('admin-products', 'DELETE', token, {}, { id: productId })
 }

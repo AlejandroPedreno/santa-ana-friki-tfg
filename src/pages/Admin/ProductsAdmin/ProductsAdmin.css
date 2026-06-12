@@ -102,6 +102,50 @@
   font-size: 0.92rem;
 }
 
+.admin-products-form__file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-products-form__file-input {
+  position: relative;
+  min-height: 0;
+  border: 1px solid #f2b247;
+  border-radius: 10px;
+  background: #fff;
+  color: #2f1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px 14px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.admin-products-form__file-input:hover {
+  background: #eeeeee;
+  border-color: #c9c9c9;
+}
+
+.admin-products-form__file-input input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-products-form__file-input span {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
 .admin-products-form input,
 .admin-products-form select {
   border: 1px solid #f2b247;
@@ -245,6 +289,10 @@
   justify-content: space-between;
   gap: 12px;
   background: #fff;
+}
+
+.admin-products-list__item strong {
+  color: #000;
 }
 
 .admin-products-list__item p,

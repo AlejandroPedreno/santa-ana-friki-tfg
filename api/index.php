@@ -5,7 +5,7 @@ declare(strict_types=1);
 // 1. Importamos las funciones base de conexión y respuestas JSON desde db.php
 require_once __DIR__ . '/db.php';
 
-// 2. Control de Preflight CORS (Vital para que React pueda comunicarse desde otro puerto)
+// 2. Control del preflight CORS para que React pueda comunicarse desde otro puerto.
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     $config = api_config();
     header('Access-Control-Allow-Origin: ' . ($config['cors_origin'] ?? '*'));
@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 3. Capturamos el endpoint solicitado a través de la URL (por defecto responderá 'health')
+// 3. Leemos el endpoint pedido en la URL; si no viene ninguno, respondemos health.
 $endpoint = $_GET['endpoint'] ?? 'health';
 
 try {
@@ -104,7 +104,7 @@ try {
             break;
 
         // =================================================================
-        // FASE 2: ESTRUCTURA PARA FUTURAS ITERACIONES (USUARIOS, CARROS, EVENTOS)
+        // Fase 2: estructura preparada para futuras iteraciones como usuarios, carrito y eventos.
         // =================================================================
         
         case 'register':
@@ -216,7 +216,7 @@ try {
             break;
 
         case 'events':
-            // Estructura preparada para listar la agenda de torneos de la comunidad
+            // Endpoint preparado para listar la agenda de torneos de la comunidad.
             $stmt = $pdo->query("SELECT * FROM events ORDER BY event_date ASC");
             $events = $stmt->fetchAll();
             api_send_json([
@@ -226,7 +226,7 @@ try {
             break;
 
         case 'checkout':
-            // Estructura preparada para procesar la compra segura verificando el token del usuario
+            // Endpoint preparado para procesar la compra segura verificando el token del usuario.
             $token = api_get_bearer_token();
             $userId = $token ? api_verify_token($token) : null;
             
@@ -265,7 +265,7 @@ try {
                 $uploadedImagePath = api_store_product_image($_FILES['image_file']);
             }
 
-            // Determine effective legacy_id: use provided positive value or allocate next available
+            // Calcula el legacy_id efectivo: usa el valor recibido o asigna el siguiente disponible.
             $effectiveLegacyId = isset($body['legacy_id']) && (int)$body['legacy_id'] > 0 ? (int)$body['legacy_id'] : null;
             if ($effectiveLegacyId === null) {
                 $stmtNext = $pdo->query('SELECT COALESCE(MAX(legacy_id), 0) + 1 AS next_legacy FROM products');
@@ -279,7 +279,7 @@ try {
             }
 
             if ($effectiveMethod === 'POST') {
-                // legacy_id is optional: backend will auto-assign if not provided
+                // El legacy_id es opcional: si no se envía, el backend lo asigna automáticamente.
                 $requiredFields = ['section_id', 'name', 'slug', 'price'];
                 foreach ($requiredFields as $field) {
                     if ($field === 'slug') {

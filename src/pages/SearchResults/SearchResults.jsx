@@ -4,6 +4,7 @@ import Header from '../../components/Header/Header.jsx'
 import Footer from '../../components/Footer/Footer.jsx'
 import Product from '../../components/Product/Product.jsx'
 import { CartContext } from '../../context/CartContext.jsx'
+import { normalizarProductoCatalogo } from '../../utils/catalogo.js'
 import './SearchResults.css'
 
 function SearchResults() {
@@ -14,7 +15,7 @@ function SearchResults() {
   const [termino, setTermino] = useState('')
 
   useEffect(() => {
-    // Obtener el término de búsqueda de la URL
+    // Lee el término de búsqueda desde la URL para poder compartir resultados.
     const params = new URLSearchParams(window.location.search)
     const busqueda = params.get('q') || ''
     setTermino(busqueda)
@@ -25,6 +26,7 @@ function SearchResults() {
     }
 
     let isCancelled = false
+    // Mientras hay búsqueda, se consulta el catálogo y se normaliza la respuesta.
     setCargando(true)
     setError('')
 
@@ -33,48 +35,32 @@ function SearchResults() {
         if (isCancelled) return
 
         const productosNormalizados = rows.map((row) => {
-          const rutaImagen = String(row.image_path || row.image || '')
-          const imagenNormalizada = rutaImagen.startsWith('http')
-            ? rutaImagen
-            : rutaImagen.startsWith('/')
-              ? rutaImagen
-              : `/${rutaImagen}`
-          const stockInicial = Number(row.stock ?? row.in_stock ?? row.inStock ?? 0)
-          const stockActual = Number.isFinite(stockInicial) ? stockInicial : 0
+          const productoBase = normalizarProductoCatalogo(row)
 
           return {
-            id: row.id,
-            name: row.name,
-            image: imagenNormalizada,
-            price: `${Number(row.price || 0).toFixed(2)}EUR`,
-            releaseOrder: Number(row.release_order || row.releaseOrder || 0),
-            stock: stockActual,
-            inStock: stockActual > 0,
+            ...productoBase,
             onAddToCart: () => {
-              if (stockActual <= 0) {
+              // Si no queda stock, no se añade el producto al carrito.
+              if (productoBase.stock <= 0) {
                 return
               }
 
-              addToCart({
-                id: row.id,
-                image: imagenNormalizada,
-                name: row.name,
-                price: `${Number(row.price || 0).toFixed(2)}EUR`,
-                releaseOrder: Number(row.release_order || row.releaseOrder || 0),
-                stock: stockActual,
-                inStock: true,
-              })
+              addToCart(productoBase)
 
               setProductos((prevProductos) =>
-                prevProductos.map((producto) =>
-                  producto.id === row.id
-                    ? {
-                      ...producto,
-                      stock: Math.max(Number(producto.stock ?? 0) - 1, 0),
-                      inStock: Math.max(Number(producto.stock ?? 0) - 1, 0) > 0,
-                    }
-                    : producto
-                )
+                prevProductos.map((producto) => {
+                  if (producto.id !== row.id) {
+                    return producto
+                  }
+
+                  const stockRestante = Math.max(Number(producto.stock ?? 0) - 1, 0)
+
+                  return {
+                    ...producto,
+                    stock: stockRestante,
+                    inStock: stockRestante > 0,
+                  }
+                })
               )
             },
           }

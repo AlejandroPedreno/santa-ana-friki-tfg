@@ -6,6 +6,7 @@ import { CartContext } from '../../context/CartContext.jsx'
 import { AuthContext } from '../../context/AuthContext.jsx'
 
 function Header() {
+	// Cada estado controla un menú desplegable independiente del encabezado.
 	const [isCardGamesOpen, setIsCardGamesOpen] = useState(false)
 	const [isMiniaturesOpen, setIsMiniaturesOpen] = useState(false)
 	const [isMaquetasOpen, setIsMaquetasOpen] = useState(false)
@@ -24,6 +25,7 @@ function Header() {
 		: 'Opciones de cuenta'
 
 	useEffect(() => {
+		// Cierra los menús al hacer clic fuera o pulsar Escape.
 		const handleClickOutside = (event) => {
 			if (!cardGamesRef.current?.contains(event.target)) {
 				setIsCardGamesOpen(false)
@@ -68,6 +70,7 @@ function Header() {
 	return (
 		<header className="site-header">
 			<div className="site-header__inner">
+				{/* Logotipo que siempre vuelve a la portada. */}
 				<a className="site-header__brand" href="/">
 					<img
 						className="site-header__logo"
@@ -77,6 +80,7 @@ function Header() {
 				</a>
 
 				<nav aria-label="Principal" className="site-header__nav">
+					{/* Menú principal por categorías del catálogo. */}
 					<div className="site-header__dropdown" ref={cardGamesRef}>
 						<button
 							type="button"

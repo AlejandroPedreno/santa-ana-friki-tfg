@@ -62,6 +62,30 @@ function Home() {
     return () => { cancelled = true }
   }, [])
 
+  const handleAddToCartNovedad = (product) => {
+    if (product.stock <= 0) {
+      return
+    }
+
+    addToCart(product)
+
+    setProductosNovedades((prevProducts) =>
+      prevProducts.map((item) => {
+        if (item.id !== product.id) {
+          return item
+        }
+
+        const stockRestante = Math.max(Number(item.stock ?? 0) - 1, 0)
+
+        return {
+          ...item,
+          stock: stockRestante,
+          inStock: stockRestante > 0,
+        }
+      })
+    )
+  }
+
   const goToPrev = () => {
     // Mueve el carrusel una posición hacia atrás.
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
@@ -137,7 +161,7 @@ function Home() {
               price={product.price}
               stock={product.stock}
               inStock={product.inStock}
-              onAddToCart={() => addToCart(product)}
+              onAddToCart={() => handleAddToCartNovedad(product)}
             />
           ))
         ) : (

@@ -55,21 +55,6 @@ import SearchResults from './pages/SearchResults/SearchResults.jsx'
 function App() {
   const [showScrollTop, setShowScrollTop] = useState(false)
 
-  // Estado visible en la barra superior para comprobar si el backend responde.
-  const [estadoApi, setEstadoApi] = useState('Comprobando conexión con la base de datos...')
-
-  // Al cargar la aplicación, se hace una petición ligera para verificar que la API está viva.
-  useEffect(() => {
-    obtenerProductosCatalogo({ limit: 200 })
-      .then((productos) => {
-        setEstadoApi(`✅ Conectado al Backend. Se han recibido ${productos.length} productos.`)
-      })
-      .catch((error) => {
-        console.error('❌ ERROR al conectar con la API:', error)
-        setEstadoApi('❌ Error de conexión con el Backend. Comprueba que XAMPP está encendido.')
-      })
-  }, []);
-
   // Muestra el botón de volver arriba cuando el usuario baja la página.
   useEffect(() => {
     const handleScroll = () => {
@@ -131,13 +116,6 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <>
-          {/* Banner de diagnóstico para ver rápidamente si la API responde. */}
-        <div style={{ backgroundColor: '#222', color: '#fff', textAlign: 'center', padding: '12px', position: 'sticky', top: 0, zIndex: 9999 }}>
-          <strong>Estado de tu API PHP:</strong> {estadoApi} <br/>
-          <small style={{ color: '#aaa' }}>(Pulsa F12, ve a la pestaña "Consola" y despliega el Array para ver los datos de MySQL)</small>
-        </div>
-
-
         {isDragonBallRoute ? (
           <DragonBallFusionWorld />
         ) : isLorcanaRoute ? (

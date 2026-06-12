@@ -3,6 +3,7 @@ import './CheckoutModal.css'
 import Header from '../../components/Header/Header.jsx'
 import Footer from '../../components/Footer/Footer.jsx'
 import { CartContext } from '../../context/CartContext.jsx'
+import paypalLogo from '../../resources/images/Paypal_logo.png'
 
 function CheckoutModal() {
   const { clearCart } = useContext(CartContext)
@@ -97,7 +98,7 @@ function CheckoutModal() {
                 }}
               >
                 <div className="payment-method-icon paypal-icon">
-                  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='16' text-anchor='middle' font-size='14' fill='%23003087' font-weight='bold'%3EPayPal%3C/text%3E%3C/svg%3E" alt="PayPal" />
+                  <img src={paypalLogo} alt="PayPal" />
                 </div>
                 <h3>PayPal</h3>
                 <p>Pago seguro con tu cuenta de PayPal</p>

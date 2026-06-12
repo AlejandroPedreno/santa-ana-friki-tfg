@@ -4,6 +4,7 @@ import Header from '../../components/Header/Header.jsx'
 import Footer from '../../components/Footer/Footer.jsx'
 import { CartContext } from '../../context/CartContext.jsx'
 import paypalLogo from '../../resources/images/Paypal_logo.png'
+import { procesarCheckout } from '../../services/checkout/checkoutApi.js'
 
 function CheckoutModal() {
   const { clearCart } = useContext(CartContext)
@@ -76,6 +77,32 @@ function CheckoutModal() {
     }
   }
 
+  const handlePaymentMethod = async (paymentMethod) => {
+    try {
+      await procesarCheckout({
+        paymentMethod,
+        cartItems,
+        totalPrice,
+        subtotal,
+        shipping,
+        billingData: formData,
+      })
+
+      localStorage.removeItem('checkoutData')
+      clearCart()
+
+      alert(
+        paymentMethod === 'paypal'
+          ? 'Pedido confirmado por PayPal'
+          : 'Pedido confirmado por Transferencia Bancaria'
+      )
+
+      window.location.href = '/'
+    } catch (error) {
+      alert(error?.message || 'No se ha podido procesar el pago.')
+    }
+  }
+
   if (step === 'payment-method') {
     return (
       <>
@@ -91,11 +118,7 @@ function CheckoutModal() {
               <button
                 type="button"
                 className="payment-method-card"
-                onClick={() => {
-                  alert('Pedido confirmado por PayPal')
-                  clearCart()
-                  window.location.href = '/'
-                }}
+                onClick={() => handlePaymentMethod('paypal')}
               >
                 <div className="payment-method-icon paypal-icon">
                   <img src={paypalLogo} alt="PayPal" />
@@ -107,11 +130,7 @@ function CheckoutModal() {
               <button
                 type="button"
                 className="payment-method-card"
-                onClick={() => {
-                  alert('Pedido confirmado por Transferencia Bancaria')
-                  clearCart()
-                  window.location.href = '/'
-                }}
+                onClick={() => handlePaymentMethod('transferencia')}
               >
                 <div className="payment-method-icon transfer-icon">
                   <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23444'%3E%3Crect x='2' y='4' width='20' height='14' rx='1' stroke='%23444' stroke-width='2' fill='none'/%3E%3Cline x1='2' y1='8' x2='22' y2='8' stroke='%23444' stroke-width='1'/%3E%3C/svg%3E" alt="Transferencia" />

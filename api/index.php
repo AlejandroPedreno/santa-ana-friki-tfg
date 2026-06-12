@@ -226,15 +226,80 @@ try {
             break;
 
         case 'checkout':
-            // Endpoint preparado para procesar la compra segura verificando el token del usuario.
-            $token = api_get_bearer_token();
-            $userId = $token ? api_verify_token($token) : null;
-            
-            if (!$userId) {
-                api_send_json(['error' => 'No autorizado. Se requiere token de sesión válido.'], 401);
+            // Procesa el pago reduciendo el stock real de los productos comprados.
+            if ($effectiveMethod !== 'POST') {
+                api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
-            // Aquí se pasaría el carrito temporal de cart_items a orders y order_items
-            api_send_json(['message' => 'Procesamiento de pedido preparado para el usuario ' . $userId], 202);
+
+            $cartItems = $body['cartItems'] ?? null;
+            $paymentMethod = trim((string)($body['paymentMethod'] ?? ''));
+
+            if (!is_array($cartItems) || $cartItems === []) {
+                api_send_json(['error' => 'El carrito no contiene productos para procesar.'], 422);
+            }
+
+            try {
+                $pdo->beginTransaction();
+                $updatedItems = [];
+
+                foreach ($cartItems as $cartItem) {
+                    $productId = (int)($cartItem['id'] ?? 0);
+                    $quantity = (int)($cartItem['quantity'] ?? 0);
+
+                    if ($productId <= 0 || $quantity <= 0) {
+                        throw new RuntimeException('Hay productos del carrito con datos inválidos.');
+                    }
+
+                    $stmtProduct = $pdo->prepare(
+                        'SELECT id, name, stock FROM products WHERE id = :id LIMIT 1 FOR UPDATE'
+                    );
+                    $stmtProduct->execute(['id' => $productId]);
+                    $product = $stmtProduct->fetch();
+
+                    if (!$product) {
+                        throw new RuntimeException('No se ha encontrado el producto con ID ' . $productId . '.');
+                    }
+
+                    $currentStock = (int)($product['stock'] ?? 0);
+                    if ($currentStock < $quantity) {
+                        throw new RuntimeException('No hay stock suficiente para ' . $product['name'] . '.');
+                    }
+
+                    $newStock = $currentStock - $quantity;
+                    $stmtUpdate = $pdo->prepare(
+                        'UPDATE products SET stock = :stock, in_stock = :in_stock WHERE id = :id LIMIT 1'
+                    );
+                    $stmtUpdate->execute([
+                        'stock' => $newStock,
+                        'in_stock' => $newStock > 0 ? 1 : 0,
+                        'id' => $productId,
+                    ]);
+
+                    $updatedItems[] = [
+                        'id' => $productId,
+                        'name' => $product['name'],
+                        'quantity' => $quantity,
+                        'stock' => $newStock,
+                    ];
+                }
+
+                $pdo->commit();
+
+                api_send_json([
+                    'message' => 'Pago procesado correctamente y stock actualizado.',
+                    'payment_method' => $paymentMethod,
+                    'updated_items' => $updatedItems,
+                ]);
+            } catch (RuntimeException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+
+                api_send_json([
+                    'error' => 'No se ha podido procesar el pago.',
+                    'message' => $e->getMessage(),
+                ], 409);
+            }
             break;
 
         case 'admin-products':

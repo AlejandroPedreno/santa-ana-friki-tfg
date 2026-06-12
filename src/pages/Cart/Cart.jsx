@@ -7,7 +7,7 @@ import { CartContext } from '../../context/CartContext.jsx'
 function Cart() {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useContext(CartContext)
   const freeShippingThreshold = 100
-  const shippingCost = 5
+  const shippingCost = 6.95
   const subtotal = getTotalPrice()
   const shipping = subtotal < freeShippingThreshold ? shippingCost : 0
   const totalPrice = subtotal + shipping

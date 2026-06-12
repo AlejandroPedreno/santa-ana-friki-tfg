@@ -40,6 +40,7 @@ import Fundas from './pages/Accesorios/Fundas/Fundas.jsx'
 import Tapetes from './pages/Accesorios/Tapetes/Tapetes.jsx'
 import Deckbox from './pages/Accesorios/Deckbox/Deckbox.jsx'
 import QuienesSomos from './pages/Información/QuienesSomos/QuienesSomos.jsx'
+import AtencionAlCliente from './pages/Información/AtencionAlCliente/AtencionAlCliente.jsx'
 import EnviosYDevoluciones from './pages/Información/EnviosYDevoluciones/EnviosYDevoluciones.jsx'
 import PoliticaDePrivacidadYCookies from './pages/Información/PoliticaDePrivacidadYCookies/PoliticaDePrivacidadYCookies.jsx'
 import TerminosYCondiciones from './pages/Información/TerminosYCondiciones/TerminosYCondiciones.jsx'
@@ -114,6 +115,7 @@ function App() {
   const isTapetesRoute = path === '/accesorios/tapetes'
   const isDeckboxRoute = path === '/accesorios/deckbox'
   const isQuienesSomosRoute = path === '/informacion/quienes-somos'
+  const isAtencionAlClienteRoute = path === '/informacion/atencion-al-cliente'
   const isEnviosRoute = path === '/informacion/envios-y-devoluciones'
   const isPoliticaRoute = path === '/informacion/politica-de-privacidad-y-cookies'
   const isTerminosRoute = path === '/informacion/terminos-y-condiciones'
@@ -186,6 +188,8 @@ function App() {
           <Deckbox />
         ) : isQuienesSomosRoute ? (
           <QuienesSomos />
+        ) : isAtencionAlClienteRoute ? (
+          <AtencionAlCliente />
         ) : isEnviosRoute ? (
           <EnviosYDevoluciones />
         ) : isPoliticaRoute ? (

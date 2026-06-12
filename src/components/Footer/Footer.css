@@ -193,12 +193,63 @@
         padding: 20px 18px 24px;
     }
 
+    .site-footer__title-img {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
     .site-footer__socials {
         justify-content: flex-start;
     }
 
     .site-footer__hours-card {
         max-width: 100%;
+        margin-top: 56px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .site-footer__map {
+        max-width: 100%;
+    }
+
+    .site-footer__address-line {
+        white-space: normal;
+    }
+}
+
+@media (max-width: 760px) {
+    .site-footer__main {
+        padding: 18px 12px 22px;
+        gap: 24px;
+    }
+
+    .site-footer__title-img,
+    .site-footer__hours-title-img {
+        width: min(100%, 190px);
+    }
+
+    .site-footer__socials {
+        justify-content: center;
+        gap: 18px;
+        margin-right: 0;
+        flex-wrap: wrap;
+    }
+
+    .site-footer__hours-card {
+        padding-top: 42px;
+    }
+
+    .site-footer__map {
+        height: 180px;
+    }
+
+    .site-footer__address {
+        text-align: center;
+    }
+
+    .site-footer__address-line {
+        justify-content: center;
     }
 }
 

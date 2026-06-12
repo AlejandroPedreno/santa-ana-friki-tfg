@@ -59,6 +59,24 @@
 	color: #070707;
 }
 
+.product-card__stock {
+	margin: 0;
+	width: 100%;
+	text-align: center;
+	font-family: 'Montserrat', 'Arial Black', 'Segoe UI', sans-serif;
+	font-size: 0.92rem;
+	line-height: 1.2;
+	font-weight: 800;
+}
+
+.product-card__stock--available {
+	color: #0b7a2a;
+}
+
+.product-card__stock--empty {
+	color: #b40000;
+}
+
 .product-card__button {
 	margin-top: 6px;
 	font-family: 'Montserrat', 'Arial Black', 'Segoe UI', sans-serif;

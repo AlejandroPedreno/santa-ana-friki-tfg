@@ -90,6 +90,8 @@ function CardGamePage({
 						: rutaImagen.startsWith('/')
 							? rutaImagen
 							: `/${rutaImagen}`
+					const stockInicial = Number(row.stock ?? row.in_stock ?? row.inStock ?? 0)
+					const stockActual = Number.isFinite(stockInicial) ? stockInicial : 0
 
 					return {
 						id: row.id,
@@ -97,15 +99,35 @@ function CardGamePage({
 						image: imagenNormalizada,
 						price: `${Number(row.price || 0).toFixed(2)}EUR`,
 						releaseOrder: Number(row.release_order || row.releaseOrder || 0),
-						inStock: Boolean(row.in_stock ?? row.inStock ?? true),
-						onAddToCart: () => onAddToCartProduct?.({
-							id: row.id,
-							image: imagenNormalizada,
-							name: row.name,
-							price: `${Number(row.price || 0).toFixed(2)}EUR`,
-							releaseOrder: Number(row.release_order || row.releaseOrder || 0),
-							inStock: Boolean(row.in_stock ?? row.inStock ?? true),
-						}),
+						stock: stockActual,
+						inStock: stockActual > 0,
+						onAddToCart: () => {
+							if (stockActual <= 0) {
+								return
+							}
+
+							onAddToCartProduct?.({
+								id: row.id,
+								image: imagenNormalizada,
+								name: row.name,
+								price: `${Number(row.price || 0).toFixed(2)}EUR`,
+								releaseOrder: Number(row.release_order || row.releaseOrder || 0),
+								stock: stockActual,
+								inStock: true,
+							})
+
+							setProductosRemotos((prevProductos) =>
+								prevProductos.map((producto) =>
+									producto.id === row.id
+										? {
+											...producto,
+											stock: Math.max(Number(producto.stock ?? 0) - 1, 0),
+											inStock: Math.max(Number(producto.stock ?? 0) - 1, 0) > 0,
+										}
+										: producto
+								)
+							)
+						},
 					}
 				})
 
@@ -195,6 +217,7 @@ function CardGamePage({
 							price={product.price}
 							onAddToCart={product.onAddToCart}
 							inStock={product.inStock !== false}
+							stock={product.stock ?? 0}
 						/>
 					))}
 				</section>

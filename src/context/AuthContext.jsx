@@ -28,6 +28,7 @@ export const AuthContext = createContext({
   user: null,
   token: null,
   isAuthenticated: false,
+  isAdmin: false,
   signIn: () => {},
   signOut: () => {},
 })
@@ -73,6 +74,7 @@ export function AuthProvider({ children }) {
     user: authState.user,
     token: authState.token,
     isAuthenticated: Boolean(authState.token),
+    isAdmin: authState.user?.role === 'admin',
     signIn,
     signOut,
   }), [authState.user, authState.token, signIn, signOut])

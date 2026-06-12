@@ -1,36 +1,27 @@
 import { useEffect, useRef, useState, useContext, useMemo } from 'react'
 import './Header.css'
-import searchIcon from '../../resources/images/icons/search.svg'
 import cartIcon from '../../resources/images/icons/shopping-cart.svg'
 import profileIcon from '../../resources/images/icons/account.svg'
 import { CartContext } from '../../context/CartContext.jsx'
 import { AuthContext } from '../../context/AuthContext.jsx'
 
 function Header() {
-	const [isSearchOpen, setIsSearchOpen] = useState(false)
 	const [isCardGamesOpen, setIsCardGamesOpen] = useState(false)
 	const [isMiniaturesOpen, setIsMiniaturesOpen] = useState(false)
 	const [isMaquetasOpen, setIsMaquetasOpen] = useState(false)
 	const [isAccesoriosOpen, setIsAccesoriosOpen] = useState(false)
 	const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
-	const searchInputRef = useRef(null)
 	const cardGamesRef = useRef(null)
 	const miniaturesRef = useRef(null)
 	const maquetasRef = useRef(null)
 	const accesoriosRef = useRef(null)
 	const accountMenuRef = useRef(null)
 	const { getTotalItems } = useContext(CartContext)
-	const { isAuthenticated, signOut, user } = useContext(AuthContext)
+	const { isAuthenticated, isAdmin, signOut, user } = useContext(AuthContext)
 	const cartCount = useMemo(() => getTotalItems(), [getTotalItems])
 	const accountLabel = isAuthenticated
 		? `Sesión iniciada${user?.first_name ? ` como ${user.first_name}` : ''}`
 		: 'Opciones de cuenta'
-
-	useEffect(() => {
-		if (isSearchOpen) {
-			searchInputRef.current?.focus()
-		}
-	}, [isSearchOpen])
 
 	useEffect(() => {
 		const handleClickOutside = (event) => {
@@ -207,23 +198,6 @@ function Header() {
 				</nav>
 
 				<div className="site-header__actions">
-					<div className="site-header__search">
-						<input
-							ref={searchInputRef}
-							className={`site-header__search-input ${isSearchOpen ? 'is-open' : ''}`}
-							type="text"
-							placeholder="Buscar..."
-						/>
-						<button
-							aria-label="Buscar"
-							className="site-header__icon-btn"
-							type="button"
-							onClick={() => setIsSearchOpen((prev) => !prev)}
-						>
-							<img alt="Buscar" src={searchIcon} />
-						</button>
-					</div>
-
 					<a href="/carrito" aria-label="Carrito de compras" className="site-header__cart-btn">
 						<img alt="Carrito" src={cartIcon} />
 						{cartCount > 0 && (
@@ -265,6 +239,11 @@ function Header() {
 								aria-label="Opciones de cuenta"
 								aria-hidden={!isAccountMenuOpen}
 							>
+								{isAdmin && (
+									<a href="/admin/productos" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>
+										Panel admin
+									</a>
+								)}
 								<div className="site-header__account-summary">
 									{user?.first_name ? `Hola, ${user.first_name}` : 'Sesión iniciada'}
 								</div>

@@ -44,9 +44,12 @@ import EnviosYDevoluciones from './pages/Información/EnviosYDevoluciones/Envios
 import PoliticaDePrivacidadYCookies from './pages/Información/PoliticaDePrivacidadYCookies/PoliticaDePrivacidadYCookies.jsx'
 import TerminosYCondiciones from './pages/Información/TerminosYCondiciones/TerminosYCondiciones.jsx'
 import Cart from './pages/Cart/Cart.jsx'
+import Checkout from './pages/Checkout/CheckoutModal.jsx'
 import Login from './pages/Auth/Login/Login.jsx'
 import Register from './pages/Auth/Register/Register.jsx'
 import Eventos from './pages/Eventos/Eventos.jsx'
+import ProductsAdmin from './pages/Admin/ProductsAdmin/ProductsAdmin.jsx'
+import SearchResults from './pages/SearchResults/SearchResults.jsx'
 
 function App() {
   const [showScrollTop, setShowScrollTop] = useState(false)
@@ -117,9 +120,12 @@ function App() {
   const isPoliticaRoute = path === '/informacion/politica-de-privacidad-y-cookies'
   const isTerminosRoute = path === '/informacion/terminos-y-condiciones'
   const isCartRoute = path === '/carrito'
+  const isCheckoutRoute = path === '/checkout'
   const isLoginRoute = path === '/login'
   const isRegisterRoute = path === '/register'
+  const isAdminProductsRoute = path === '/admin/productos'
   const isEventosRoute = path === '/eventos'
+  const isSearchRoute = path === '/buscar'
 
   return (
     <AuthProvider>
@@ -194,12 +200,18 @@ function App() {
           <TerminosYCondiciones />
         ) : isCartRoute ? (
           <Cart />
+        ) : isCheckoutRoute ? (
+          <Checkout />
         ) : isLoginRoute ? (
           <Login />
         ) : isRegisterRoute ? (
           <Register />
+        ) : isAdminProductsRoute ? (
+          <ProductsAdmin />
         ) : isEventosRoute ? (
           <Eventos />
+        ) : isSearchRoute ? (
+          <SearchResults />
         ) : (
           <>
             <Header />

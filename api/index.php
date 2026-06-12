@@ -21,6 +21,12 @@ $endpoint = $_GET['endpoint'] ?? 'health';
 try {
     // Inicializamos la conexión PDO
     $pdo = api_pdo();
+    $body = api_request_body();
+    $effectiveMethod = $_SERVER['REQUEST_METHOD'];
+
+    if ($effectiveMethod === 'POST' && strtoupper((string)($body['_method'] ?? '')) === 'PUT') {
+        $effectiveMethod = 'PUT';
+    }
 
     // 4. Sistema de Enrutamiento Principal
     switch ($endpoint) {
@@ -65,12 +71,18 @@ try {
             break;
 
         case 'products':
-            // Devuelve los productos permitiendo filtrar por sección (?section=) y subcategoría (?subcategory=)
+            // Devuelve los productos permitiendo filtrar por sección (?section=), subcategoría (?subcategory=) o búsqueda (?search=)
             $sectionSlug = $_GET['section'] ?? null;
             $subCategorySlug = $_GET['subcategory'] ?? null;
+            $searchTerm = $_GET['search'] ?? null;
             
             $sql = "SELECT p.* FROM products p WHERE p.active = 1";
             $params = [];
+
+            if ($searchTerm) {
+                $sql .= " AND (p.name LIKE :search_term OR p.source_file LIKE :search_term)";
+                $params['search_term'] = '%' . $searchTerm . '%';
+            }
 
             if ($sectionSlug) {
                 $sql .= " AND p.section_id = (SELECT id FROM catalog_sections WHERE slug = :section_slug)";
@@ -223,6 +235,150 @@ try {
             }
             // Aquí se pasaría el carrito temporal de cart_items a orders y order_items
             api_send_json(['message' => 'Procesamiento de pedido preparado para el usuario ' . $userId], 202);
+            break;
+
+        case 'admin-products':
+            $currentUser = api_require_admin();
+
+            if ($effectiveMethod === 'GET') {
+                $stmt = $pdo->query(
+                    'SELECT p.*, cs.name AS section_name, cs.slug AS section_slug, csub.name AS subcategory_name, csub.slug AS subcategory_slug
+                     FROM products p
+                     INNER JOIN catalog_sections cs ON p.section_id = cs.id
+                     LEFT JOIN catalog_subcategories csub ON p.subcategory_id = csub.id
+                     ORDER BY p.updated_at DESC, p.id DESC'
+                );
+
+                api_send_json([
+                    'user' => [
+                        'id' => (int)$currentUser['id'],
+                        'email' => $currentUser['email'],
+                        'role' => $currentUser['role'],
+                    ],
+                    'data' => $stmt->fetchAll(),
+                ]);
+            }
+
+            $uploadedImagePath = null;
+
+            if (!empty($_FILES['image_file']['name'])) {
+                $uploadedImagePath = api_store_product_image($_FILES['image_file']);
+            }
+
+            // Determine effective legacy_id: use provided positive value or allocate next available
+            $effectiveLegacyId = isset($body['legacy_id']) && (int)$body['legacy_id'] > 0 ? (int)$body['legacy_id'] : null;
+            if ($effectiveLegacyId === null) {
+                $stmtNext = $pdo->query('SELECT COALESCE(MAX(legacy_id), 0) + 1 AS next_legacy FROM products');
+                $rowNext = $stmtNext->fetch();
+                $effectiveLegacyId = (int)($rowNext['next_legacy'] ?? 1);
+            }
+
+            $normalizedSlug = api_slugify(trim((string)($body['slug'] ?? '')));
+            if ($normalizedSlug === 'producto' || ($body['slug'] ?? '') === '') {
+                $normalizedSlug = api_slugify(trim((string)($body['name'] ?? '')) . '-' . (string)$effectiveLegacyId);
+            }
+
+            if ($effectiveMethod === 'POST') {
+                // legacy_id is optional: backend will auto-assign if not provided
+                $requiredFields = ['section_id', 'name', 'slug', 'price'];
+                foreach ($requiredFields as $field) {
+                    if ($field === 'slug') {
+                        continue;
+                    }
+
+                    if (!isset($body[$field]) || $body[$field] === '') {
+                        api_send_json(['error' => 'Faltan campos obligatorios para crear el producto.'], 422);
+                    }
+                }
+
+                if ($uploadedImagePath === null && empty($body['image_path'])) {
+                    api_send_json(['error' => 'Debes subir una imagen o indicar una ruta de imagen.'], 422);
+                }
+
+                $stmt = $pdo->prepare('
+                    INSERT INTO products
+                    (section_id, subcategory_id, legacy_id, name, slug, image_path, price, currency, release_order, in_stock, stock, active, source_file)
+                    VALUES
+                    (:section_id, :subcategory_id, :legacy_id, :name, :slug, :image_path, :price, :currency, :release_order, :in_stock, :stock, :active, :source_file)
+                ');
+
+                $stmt->execute([
+                    'section_id' => (int)$body['section_id'],
+                    'subcategory_id' => !empty($body['subcategory_id']) ? (int)$body['subcategory_id'] : null,
+                    'legacy_id' => $effectiveLegacyId,
+                    'name' => trim((string)$body['name']),
+                    'slug' => $normalizedSlug,
+                    'image_path' => $uploadedImagePath ?? (trim((string)($body['image_path'] ?? '')) ?: null),
+                    'price' => (float)$body['price'],
+                    'currency' => trim((string)($body['currency'] ?? 'EUR')),
+                    'release_order' => $body['release_order'] !== null && $body['release_order'] !== '' ? (int)$body['release_order'] : 0,
+                    'in_stock' => !empty($body['in_stock']) ? 1 : 0,
+                    'stock' => isset($body['stock']) ? (int)$body['stock'] : 0,
+                    'active' => isset($body['active']) ? (int)(bool)$body['active'] : 1,
+                    'source_file' => trim((string)($body['source_file'] ?? '')) ?: null,
+                ]);
+
+                api_send_json([
+                    'message' => 'Producto creado correctamente.',
+                    'id' => (int)$pdo->lastInsertId(),
+                ], 201);
+            }
+
+            if ($effectiveMethod === 'PUT') {
+                $productId = (int)($body['id'] ?? 0);
+                if ($productId <= 0) {
+                    api_send_json(['error' => 'Debes indicar el ID del producto a modificar.'], 422);
+                }
+
+                $stmt = $pdo->prepare('
+                    UPDATE products
+                    SET section_id = :section_id,
+                        subcategory_id = :subcategory_id,
+                        legacy_id = :legacy_id,
+                        name = :name,
+                        slug = :slug,
+                        image_path = :image_path,
+                        price = :price,
+                        in_stock = :in_stock,
+                        stock = :stock,
+                        active = :active,
+                        source_file = :source_file
+                    WHERE id = :id
+                    LIMIT 1
+                ');
+
+                $stmt->execute([
+                    'id' => $productId,
+                    'section_id' => (int)($body['section_id'] ?? 0),
+                    'subcategory_id' => !empty($body['subcategory_id']) ? (int)$body['subcategory_id'] : null,
+                    'legacy_id' => (int)($body['legacy_id'] ?? 0),
+                    'name' => trim((string)($body['name'] ?? '')),
+                    'slug' => $normalizedSlug,
+                    'image_path' => $uploadedImagePath ?? (trim((string)($body['image_path'] ?? '')) ?: null),
+                    'price' => (float)($body['price'] ?? 0),
+                    'in_stock' => !empty($body['in_stock']) ? 1 : 0,
+                    'stock' => isset($body['stock']) ? (int)$body['stock'] : 0,
+                    'active' => isset($body['active']) ? (int)(bool)$body['active'] : 1,
+                    'source_file' => trim((string)($body['source_file'] ?? '')) ?: null,
+                ]);
+
+                api_send_json(['message' => 'Producto actualizado correctamente.']);
+            }
+
+            if ($effectiveMethod === 'DELETE') {
+                $productId = (int)($_GET['id'] ?? ($body['id'] ?? 0));
+
+                if ($productId <= 0) {
+                    api_send_json(['error' => 'Debes indicar el ID del producto a eliminar.'], 422);
+                }
+
+                $stmt = $pdo->prepare('DELETE FROM products WHERE id = :id LIMIT 1');
+                $stmt->execute(['id' => $productId]);
+
+                api_send_json(['message' => 'Producto eliminado correctamente.']);
+            }
+
+            api_send_json(['error' => 'Método no permitido.'], 405);
             break;
 
         default:

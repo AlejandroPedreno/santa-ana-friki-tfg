@@ -37,7 +37,7 @@ export function CartProvider({ children }) {
         )
       }
       
-      return [...prevItems, { ...product, quantity: 1 }]
+      return [...prevItems, { ...product, quantity: 1, stock: Number(product.stock ?? 0) }]
     })
   }, [])
 
@@ -55,7 +55,9 @@ export function CartProvider({ children }) {
     
     setCartItems((prevItems) =>
       prevItems.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
+        item.id === productId
+          ? { ...item, quantity: Math.min(quantity, Number(item.stock ?? quantity)) }
+          : item
       )
     )
   }, [removeFromCart])

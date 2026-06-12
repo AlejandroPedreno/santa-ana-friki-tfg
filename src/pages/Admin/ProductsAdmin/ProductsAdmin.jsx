@@ -1,8 +1,8 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useDeferredValue, useEffect, useState } from 'react'
 import Header from '../../../components/Header/Header.jsx'
 import Footer from '../../../components/Footer/Footer.jsx'
 import { AuthContext } from '../../../context/AuthContext.jsx'
-import { obtenerProductosCatalogo, obtenerSeccionesCatalogo, obtenerSubcategoriasCatalogo } from '../../../services/catalogo/catalogoApi.js'
+import { obtenerSeccionesCatalogo, obtenerSubcategoriasCatalogo } from '../../../services/catalogo/catalogoApi.js'
 import { actualizarProductoAdmin, crearProductoAdmin, eliminarProductoAdmin, obtenerProductosAdmin } from '../../../services/admin/adminProductsApi.js'
 import './ProductsAdmin.css'
 
@@ -22,15 +22,23 @@ const emptyForm = {
   source_file: '',
 }
 
+const normalizeText = (value) => String(value ?? '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim()
+
 function ProductsAdmin() {
   const { token, user, isAuthenticated } = useContext(AuthContext)
   const [sections, setSections] = useState([])
   const [subcategories, setSubcategories] = useState([])
   const [products, setProducts] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [formData, setFormData] = useState(emptyForm)
   const [errorMessage, setErrorMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const deferredSearchTerm = useDeferredValue(searchTerm)
 
   const isAdmin = user?.role === 'admin'
 
@@ -167,6 +175,23 @@ function ProductsAdmin() {
     }
   }
 
+  const normalizedSearch = normalizeText(deferredSearchTerm)
+  const filteredProducts = products.filter((product) => {
+    if (!normalizedSearch) {
+      return true
+    }
+
+    return [
+      product.name,
+      product.section_name,
+      product.subcategory_name,
+      product.slug,
+      product.legacy_id,
+      product.source_file,
+      product.id,
+    ].some((field) => normalizeText(field).includes(normalizedSearch))
+  })
+
   if (!isAdmin) {
     return null
   }
@@ -176,13 +201,11 @@ function ProductsAdmin() {
       <Header />
       <main className="admin-products-page">
         <section className="admin-products-page__hero">
-          <div>
-            <p className="admin-products-page__eyebrow">Panel de administración</p>
-            <h1>Gestionar artículos</h1>
-            <p>Crear, editar y eliminar productos del catálogo desde una única pantalla.</p>
+          <div className="admin-products-page__header">
+            <h1>PANEL DE ADMINISTRACIÓN</h1>
           </div>
         </section>
-
+<br></br>
         <section className="admin-products-page__content">
           <form className="admin-products-form" onSubmit={handleSubmit}>
             <div className="admin-products-form__grid">
@@ -224,7 +247,7 @@ function ProductsAdmin() {
 
             {errorMessage && <p className="admin-products-form__error">{errorMessage}</p>}
             {statusMessage && <p className="admin-products-form__success">{statusMessage}</p>}
-
+<br></br>
             <div className="admin-products-form__actions">
               <button type="submit" disabled={isSaving}>
                 {isSaving ? 'Guardando...' : (formData.id ? 'Actualizar producto' : 'Crear producto')}
@@ -236,21 +259,45 @@ function ProductsAdmin() {
           </form>
 
           <section className="admin-products-list">
-            <h2>Productos existentes</h2>
+            <div className="admin-products-list__header">
+              <div>
+                <h2>LISTA DE PRODUCTOS</h2>
+              </div>
+              <label className="admin-products-list__search">
+                Buscar producto
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Ej. Starter Deck, Fundas, Warhammer..."
+                  aria-label="Buscar productos del panel de administración"
+                />
+              </label>
+            </div>
+            <p className="admin-products-list__count">
+              Mostrando {filteredProducts.length} de {products.length} productos
+            </p>
             <div className="admin-products-list__items">
-              {products.map((product) => (
-                <article key={product.id} className="admin-products-list__item">
-                  <div>
-                    <strong>{product.name}</strong>
-                    <p>{product.section_name}{product.subcategory_name ? ` · ${product.subcategory_name}` : ''}</p>
-                    <small>ID {product.id} · Legacy {product.legacy_id} · {product.price} {product.currency}</small>
-                  </div>
-                  <div className="admin-products-list__buttons">
-                    <button type="button" onClick={() => handleSelectProduct(product)}>Editar</button>
-                    <button type="button" onClick={() => handleDelete(product.id)}>Eliminar</button>
-                  </div>
-                </article>
-              ))}
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                  <article key={product.id} className="admin-products-list__item">
+                    <div>
+                      <strong>{product.name}</strong>
+                      <p>{product.section_name}{product.subcategory_name ? ` · ${product.subcategory_name}` : ''}</p>
+                      <small>ID {product.id} · Legacy {product.legacy_id} · {product.price} {product.currency}</small>
+                    </div>
+                    <div className="admin-products-list__buttons">
+                      <button type="button" onClick={() => handleSelectProduct(product)}>Editar</button>
+                      <button type="button" onClick={() => handleDelete(product.id)}>Eliminar</button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="admin-products-list__empty">
+                  <strong>No hay productos que coincidan con la búsqueda.</strong>
+                  <p>Prueba con otra parte del nombre, la sección o el ID.</p>
+                </div>
+              )}
             </div>
           </section>
         </section>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 // 1. Importamos las funciones base de conexión y respuestas JSON desde db.php
 require_once __DIR__ . '/db.php';
 
-// 2. Control de Preflight CORS (Vital para que React pueda comunicarse desde otro puerto)
+// 2. Control del preflight CORS para que React pueda comunicarse desde otro puerto.
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     $config = api_config();
     header('Access-Control-Allow-Origin: ' . ($config['cors_origin'] ?? '*'));
@@ -15,12 +15,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 3. Capturamos el endpoint solicitado a través de la URL (por defecto responderá 'health')
+// 3. Leemos el endpoint pedido en la URL; si no viene ninguno, respondemos health.
 $endpoint = $_GET['endpoint'] ?? 'health';
 
 try {
     // Inicializamos la conexión PDO
     $pdo = api_pdo();
+    $body = api_request_body();
+    $effectiveMethod = $_SERVER['REQUEST_METHOD'];
+
+    if ($effectiveMethod === 'POST' && strtoupper((string)($body['_method'] ?? '')) === 'PUT') {
+        $effectiveMethod = 'PUT';
+    }
 
     // 4. Sistema de Enrutamiento Principal
     switch ($endpoint) {
@@ -65,12 +71,18 @@ try {
             break;
 
         case 'products':
-            // Devuelve los productos permitiendo filtrar por sección (?section=) y subcategoría (?subcategory=)
+            // Devuelve los productos permitiendo filtrar por sección (?section=), subcategoría (?subcategory=) o búsqueda (?search=)
             $sectionSlug = $_GET['section'] ?? null;
             $subCategorySlug = $_GET['subcategory'] ?? null;
+            $searchTerm = $_GET['search'] ?? null;
             
             $sql = "SELECT p.* FROM products p WHERE p.active = 1";
             $params = [];
+
+            if ($searchTerm) {
+                $sql .= " AND (p.name LIKE :search_term OR p.source_file LIKE :search_term)";
+                $params['search_term'] = '%' . $searchTerm . '%';
+            }
 
             if ($sectionSlug) {
                 $sql .= " AND p.section_id = (SELECT id FROM catalog_sections WHERE slug = :section_slug)";
@@ -92,29 +104,119 @@ try {
             break;
 
         // =================================================================
-        // FASE 2: ESTRUCTURA PARA FUTURAS ITERACIONES (USUARIOS, CARROS, EVENTOS)
+        // Fase 2: estructura preparada para futuras iteraciones como usuarios, carrito y eventos.
         // =================================================================
         
         case 'register':
-            // Estructura preparada para el registro de usuarios (POST)
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
-            // Aquí iría la captura de datos de React, password_hash() e INSERT INTO users
-            api_send_json(['message' => 'Endpoint de registro preparado (Fase 2)'], 202);
+
+            $body = api_request_body();
+            $name = trim((string)($body['name'] ?? ''));
+            $email = trim((string)($body['email'] ?? ''));
+            $phone = trim((string)($body['phone'] ?? ''));
+            $password = (string)($body['password'] ?? '');
+
+            if ($name === '' || $email === '' || $password === '') {
+                api_send_json(['error' => 'Faltan datos obligatorios para registrar el usuario.'], 422);
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                api_send_json(['error' => 'El correo electrónico no es válido.'], 422);
+            }
+
+            if (strlen($password) < 8) {
+                api_send_json(['error' => 'La contraseña debe tener al menos 8 caracteres.'], 422);
+            }
+
+            $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+            $stmt->execute(['email' => $email]);
+
+            if ($stmt->fetch()) {
+                api_send_json(['error' => 'Ya existe una cuenta con ese correo electrónico.'], 409);
+            }
+
+            $nameParts = preg_split('/\s+/', $name, 2, PREG_SPLIT_NO_EMPTY) ?: [];
+            $firstName = $nameParts[0] ?? $name;
+            $lastName = $nameParts[1] ?? null;
+
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+            $stmt = $pdo->prepare('
+                INSERT INTO users (email, password_hash, role, first_name, last_name, phone, active)
+                VALUES (:email, :password_hash, :role, :first_name, :last_name, :phone, 1)
+            ');
+            $stmt->execute([
+                'email' => $email,
+                'password_hash' => $passwordHash,
+                'role' => 'user',
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'phone' => $phone !== '' ? $phone : null,
+            ]);
+
+            $userId = (int)$pdo->lastInsertId();
+            $sessionToken = api_generate_token($userId);
+
+            api_send_json([
+                'message' => 'Usuario registrado correctamente.',
+                'token' => $sessionToken,
+                'user' => [
+                    'id' => $userId,
+                    'email' => $email,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'phone' => $phone,
+                    'role' => 'user',
+                ],
+            ], 201);
             break;
 
         case 'login':
-            // Estructura preparada para la autenticación y uso de tokens JWT/Bearer
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
-            // Aquí se verificarían credenciales y se llamaría a api_generate_token($userId)
-            api_send_json(['message' => 'Endpoint de autenticación preparado (Fase 2)'], 202);
+
+            $body = api_request_body();
+            $email = trim((string)($body['email'] ?? ''));
+            $password = (string)($body['password'] ?? '');
+
+            if ($email === '' || $password === '') {
+                api_send_json(['error' => 'Debes indicar correo electrónico y contraseña.'], 422);
+            }
+
+            $stmt = $pdo->prepare('
+                SELECT id, email, password_hash, role, first_name, last_name, phone
+                FROM users
+                WHERE email = :email AND active = 1
+                LIMIT 1
+            ');
+            $stmt->execute(['email' => $email]);
+            $user = $stmt->fetch();
+
+            if (!$user || !password_verify($password, $user['password_hash'])) {
+                api_send_json(['error' => 'Credenciales incorrectas.'], 401);
+            }
+
+            $sessionToken = api_generate_token((int)$user['id']);
+
+            api_send_json([
+                'message' => 'Sesión iniciada correctamente.',
+                'token' => $sessionToken,
+                'user' => [
+                    'id' => (int)$user['id'],
+                    'email' => $user['email'],
+                    'first_name' => $user['first_name'],
+                    'last_name' => $user['last_name'],
+                    'phone' => $user['phone'],
+                    'role' => $user['role'],
+                ],
+            ]);
             break;
 
         case 'events':
-            // Estructura preparada para listar la agenda de torneos de la comunidad
+            // Endpoint preparado para listar la agenda de torneos de la comunidad.
             $stmt = $pdo->query("SELECT * FROM events ORDER BY event_date ASC");
             $events = $stmt->fetchAll();
             api_send_json([
@@ -124,15 +226,224 @@ try {
             break;
 
         case 'checkout':
-            // Estructura preparada para procesar la compra segura verificando el token del usuario
-            $token = api_get_bearer_token();
-            $userId = $token ? api_verify_token($token) : null;
-            
-            if (!$userId) {
-                api_send_json(['error' => 'No autorizado. Se requiere token de sesión válido.'], 401);
+            // Procesa el pago reduciendo el stock real de los productos comprados.
+            if ($effectiveMethod !== 'POST') {
+                api_send_json(['error' => 'Método no permitido. Use POST.'], 405);
             }
-            // Aquí se pasaría el carrito temporal de cart_items a orders y order_items
-            api_send_json(['message' => 'Procesamiento de pedido preparado para el usuario ' . $userId], 202);
+
+            $cartItems = $body['cartItems'] ?? null;
+            $paymentMethod = trim((string)($body['paymentMethod'] ?? ''));
+
+            if (!is_array($cartItems) || $cartItems === []) {
+                api_send_json(['error' => 'El carrito no contiene productos para procesar.'], 422);
+            }
+
+            try {
+                $pdo->beginTransaction();
+                $updatedItems = [];
+
+                foreach ($cartItems as $cartItem) {
+                    $productId = (int)($cartItem['id'] ?? 0);
+                    $quantity = (int)($cartItem['quantity'] ?? 0);
+
+                    if ($productId <= 0 || $quantity <= 0) {
+                        throw new RuntimeException('Hay productos del carrito con datos inválidos.');
+                    }
+
+                    $stmtProduct = $pdo->prepare(
+                        'SELECT id, name, stock FROM products WHERE id = :id LIMIT 1 FOR UPDATE'
+                    );
+                    $stmtProduct->execute(['id' => $productId]);
+                    $product = $stmtProduct->fetch();
+
+                    if (!$product) {
+                        throw new RuntimeException('No se ha encontrado el producto con ID ' . $productId . '.');
+                    }
+
+                    $currentStock = (int)($product['stock'] ?? 0);
+                    if ($currentStock < $quantity) {
+                        throw new RuntimeException('No hay stock suficiente para ' . $product['name'] . '.');
+                    }
+
+                    $newStock = $currentStock - $quantity;
+                    $stmtUpdate = $pdo->prepare(
+                        'UPDATE products SET stock = :stock, in_stock = :in_stock WHERE id = :id LIMIT 1'
+                    );
+                    $stmtUpdate->execute([
+                        'stock' => $newStock,
+                        'in_stock' => $newStock > 0 ? 1 : 0,
+                        'id' => $productId,
+                    ]);
+
+                    $updatedItems[] = [
+                        'id' => $productId,
+                        'name' => $product['name'],
+                        'quantity' => $quantity,
+                        'stock' => $newStock,
+                    ];
+                }
+
+                $pdo->commit();
+
+                api_send_json([
+                    'message' => 'Pago procesado correctamente y stock actualizado.',
+                    'payment_method' => $paymentMethod,
+                    'updated_items' => $updatedItems,
+                ]);
+            } catch (RuntimeException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+
+                api_send_json([
+                    'error' => 'No se ha podido procesar el pago.',
+                    'message' => $e->getMessage(),
+                ], 409);
+            }
+            break;
+
+        case 'admin-products':
+            $currentUser = api_require_admin();
+
+            if ($effectiveMethod === 'GET') {
+                $stmt = $pdo->query(
+                    'SELECT p.*, cs.name AS section_name, cs.slug AS section_slug, csub.name AS subcategory_name, csub.slug AS subcategory_slug
+                     FROM products p
+                     INNER JOIN catalog_sections cs ON p.section_id = cs.id
+                     LEFT JOIN catalog_subcategories csub ON p.subcategory_id = csub.id
+                     ORDER BY p.updated_at DESC, p.id DESC'
+                );
+
+                api_send_json([
+                    'user' => [
+                        'id' => (int)$currentUser['id'],
+                        'email' => $currentUser['email'],
+                        'role' => $currentUser['role'],
+                    ],
+                    'data' => $stmt->fetchAll(),
+                ]);
+            }
+
+            $uploadedImagePath = null;
+
+            if (!empty($_FILES['image_file']['name'])) {
+                $uploadedImagePath = api_store_product_image($_FILES['image_file']);
+            }
+
+            // Calcula el legacy_id efectivo: usa el valor recibido o asigna el siguiente disponible.
+            $effectiveLegacyId = isset($body['legacy_id']) && (int)$body['legacy_id'] > 0 ? (int)$body['legacy_id'] : null;
+            if ($effectiveLegacyId === null) {
+                $stmtNext = $pdo->query('SELECT COALESCE(MAX(legacy_id), 0) + 1 AS next_legacy FROM products');
+                $rowNext = $stmtNext->fetch();
+                $effectiveLegacyId = (int)($rowNext['next_legacy'] ?? 1);
+            }
+
+            $normalizedSlug = api_slugify(trim((string)($body['slug'] ?? '')));
+            if ($normalizedSlug === 'producto' || ($body['slug'] ?? '') === '') {
+                $normalizedSlug = api_slugify(trim((string)($body['name'] ?? '')) . '-' . (string)$effectiveLegacyId);
+            }
+
+            if ($effectiveMethod === 'POST') {
+                // El legacy_id es opcional: si no se envía, el backend lo asigna automáticamente.
+                $requiredFields = ['section_id', 'name', 'slug', 'price'];
+                foreach ($requiredFields as $field) {
+                    if ($field === 'slug') {
+                        continue;
+                    }
+
+                    if (!isset($body[$field]) || $body[$field] === '') {
+                        api_send_json(['error' => 'Faltan campos obligatorios para crear el producto.'], 422);
+                    }
+                }
+
+                if ($uploadedImagePath === null && empty($body['image_path'])) {
+                    api_send_json(['error' => 'Debes subir una imagen o indicar una ruta de imagen.'], 422);
+                }
+
+                $stmt = $pdo->prepare('
+                    INSERT INTO products
+                    (section_id, subcategory_id, legacy_id, name, slug, image_path, price, currency, release_order, in_stock, stock, active, source_file)
+                    VALUES
+                    (:section_id, :subcategory_id, :legacy_id, :name, :slug, :image_path, :price, :currency, :release_order, :in_stock, :stock, :active, :source_file)
+                ');
+
+                $stmt->execute([
+                    'section_id' => (int)$body['section_id'],
+                    'subcategory_id' => !empty($body['subcategory_id']) ? (int)$body['subcategory_id'] : null,
+                    'legacy_id' => $effectiveLegacyId,
+                    'name' => trim((string)$body['name']),
+                    'slug' => $normalizedSlug,
+                    'image_path' => $uploadedImagePath ?? (trim((string)($body['image_path'] ?? '')) ?: null),
+                    'price' => (float)$body['price'],
+                    'currency' => trim((string)($body['currency'] ?? 'EUR')),
+                    'release_order' => $body['release_order'] !== null && $body['release_order'] !== '' ? (int)$body['release_order'] : 0,
+                    'in_stock' => !empty($body['in_stock']) ? 1 : 0,
+                    'stock' => isset($body['stock']) ? (int)$body['stock'] : 0,
+                    'active' => isset($body['active']) ? (int)(bool)$body['active'] : 1,
+                    'source_file' => trim((string)($body['source_file'] ?? '')) ?: null,
+                ]);
+
+                api_send_json([
+                    'message' => 'Producto creado correctamente.',
+                    'id' => (int)$pdo->lastInsertId(),
+                ], 201);
+            }
+
+            if ($effectiveMethod === 'PUT') {
+                $productId = (int)($body['id'] ?? 0);
+                if ($productId <= 0) {
+                    api_send_json(['error' => 'Debes indicar el ID del producto a modificar.'], 422);
+                }
+
+                $stmt = $pdo->prepare('
+                    UPDATE products
+                    SET section_id = :section_id,
+                        subcategory_id = :subcategory_id,
+                        legacy_id = :legacy_id,
+                        name = :name,
+                        slug = :slug,
+                        image_path = :image_path,
+                        price = :price,
+                        in_stock = :in_stock,
+                        stock = :stock,
+                        active = :active,
+                        source_file = :source_file
+                    WHERE id = :id
+                    LIMIT 1
+                ');
+
+                $stmt->execute([
+                    'id' => $productId,
+                    'section_id' => (int)($body['section_id'] ?? 0),
+                    'subcategory_id' => !empty($body['subcategory_id']) ? (int)$body['subcategory_id'] : null,
+                    'legacy_id' => (int)($body['legacy_id'] ?? 0),
+                    'name' => trim((string)($body['name'] ?? '')),
+                    'slug' => $normalizedSlug,
+                    'image_path' => $uploadedImagePath ?? (trim((string)($body['image_path'] ?? '')) ?: null),
+                    'price' => (float)($body['price'] ?? 0),
+                    'in_stock' => !empty($body['in_stock']) ? 1 : 0,
+                    'stock' => isset($body['stock']) ? (int)$body['stock'] : 0,
+                    'active' => isset($body['active']) ? (int)(bool)$body['active'] : 1,
+                    'source_file' => trim((string)($body['source_file'] ?? '')) ?: null,
+                ]);
+
+                api_send_json(['message' => 'Producto actualizado correctamente.']);
+            }
+
+            if ($effectiveMethod === 'DELETE') {
+                $productId = (int)($_GET['id'] ?? ($body['id'] ?? 0));
+
+                if ($productId <= 0) {
+                    api_send_json(['error' => 'Debes indicar el ID del producto a eliminar.'], 422);
+                }
+
+                $stmt = $pdo->prepare('DELETE FROM products WHERE id = :id LIMIT 1');
+                $stmt->execute(['id' => $productId]);
+
+                api_send_json(['message' => 'Producto eliminado correctamente.']);
+            }
+
+            api_send_json(['error' => 'Método no permitido.'], 405);
             break;
 
         default:

@@ -19,6 +19,7 @@ function Footer() {
 
           <ul className="site-footer__links">
             <li><a href="/informacion/quienes-somos">Quiénes somos</a></li>
+            <li><a href="/informacion/atencion-al-cliente">Atención al cliente</a></li>
             <li><a href="/informacion/envios-y-devoluciones">Envíos y devoluciones</a></li>
             <li><a href="/informacion/politica-de-privacidad-y-cookies">Política de privacidad y cookies</a></li>
             <li><a href="/informacion/terminos-y-condiciones">Términos y condiciones</a></li>

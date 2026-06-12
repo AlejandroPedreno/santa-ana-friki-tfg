@@ -3,8 +3,8 @@
 
 -- Usuarios (password: "password" para ambos, dev only)
 INSERT INTO users (email, password_hash, role, first_name, last_name, created_at) VALUES
-('admin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.3R67o8g2b6c0o3e.', 'admin', 'Admin', 'User', NOW()),
-('user@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.3R67o8g2b6c0o3e.', 'user', 'Normal', 'User', NOW());
+('admin@example.com', '$2y$10$ZPQfVojwA7oG7LcYSWi9SOIImJtD56OeYZMTXLTDcao7v1cId1Kjy', 'admin', 'Admin', 'User', NOW()),
+('user@example.com', '$2y$10$ZPQfVojwA7oG7LcYSWi9SOIImJtD56OeYZMTXLTDcao7v1cId1Kjy', 'user', 'Normal', 'User', NOW());
 
 -- Events de ejemplo
 INSERT INTO events (name, slug, description, game_type, event_date, event_end_date, location, image_path, max_participants, registration_fee, currency, status, created_at) VALUES

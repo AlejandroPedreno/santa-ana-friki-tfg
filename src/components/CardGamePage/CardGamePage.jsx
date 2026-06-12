@@ -3,6 +3,7 @@ import Header from '../Header/Header.jsx'
 import Footer from '../Footer/Footer.jsx'
 import Product from '../Product/Product.jsx'
 import { obtenerProductosCatalogo } from '../../services/catalogo/catalogoApi'
+import { normalizarProductoCatalogo } from '../../utils/catalogo.js'
 import './CardGamePage.css'
 
 const defaultSortOptions = [
@@ -75,7 +76,7 @@ function CardGamePage({
 		setCargando(true)
 		setErrorCarga('')
 
-			obtenerProductosCatalogo({
+		obtenerProductosCatalogo({
 			section: slugSeccionResuelto,
 			subcategory: subcategorySlug || undefined,
 			limit: 200,
@@ -84,28 +85,33 @@ function CardGamePage({
 				if (isCancelled) return
 
 				const productosNormalizados = rows.map((row) => {
-					const rutaImagen = String(row.image_path || row.image || '')
-					const imagenNormalizada = rutaImagen.startsWith('http')
-						? rutaImagen
-						: rutaImagen.startsWith('/')
-							? rutaImagen
-							: `/${rutaImagen}`
+					const productoBase = normalizarProductoCatalogo(row)
 
 					return {
-						id: row.id,
-						name: row.name,
-						image: imagenNormalizada,
-						price: `${Number(row.price || 0).toFixed(2)}EUR`,
-						releaseOrder: Number(row.release_order || row.releaseOrder || 0),
-						inStock: Boolean(row.in_stock ?? row.inStock ?? true),
-						onAddToCart: () => onAddToCartProduct?.({
-							id: row.id,
-							image: imagenNormalizada,
-							name: row.name,
-							price: `${Number(row.price || 0).toFixed(2)}EUR`,
-							releaseOrder: Number(row.release_order || row.releaseOrder || 0),
-							inStock: Boolean(row.in_stock ?? row.inStock ?? true),
-						}),
+						...productoBase,
+						onAddToCart: () => {
+							if (productoBase.stock <= 0) {
+								return
+							}
+
+							onAddToCartProduct?.(productoBase)
+
+							setProductosRemotos((prevProductos) =>
+								prevProductos.map((producto) => {
+									if (producto.id !== row.id) {
+										return producto
+									}
+
+									const stockRestante = Math.max(Number(producto.stock ?? 0) - 1, 0)
+
+									return {
+										...producto,
+										stock: stockRestante,
+										inStock: stockRestante > 0,
+									}
+								})
+							)
+						},
 					}
 				})
 
@@ -185,8 +191,8 @@ function CardGamePage({
 				</section>
 
 				<section className="card-game-page__products" aria-label={productsAriaLabel}>
-					{cargando ? <p>Cargando productos...</p> : null}
-					{errorCarga ? <p>No se pudieron cargar productos desde la base de datos: {errorCarga}</p> : null}
+					  {cargando && <p>Cargando productos...</p>}
+					  {errorCarga && <p>No se pudieron cargar productos desde la base de datos: {errorCarga}</p>}
 					{sortedProducts.map((product) => (
 						<Product
 							key={product.id}
@@ -195,6 +201,7 @@ function CardGamePage({
 							price={product.price}
 							onAddToCart={product.onAddToCart}
 							inStock={product.inStock !== false}
+							stock={product.stock ?? 0}
 						/>
 					))}
 				</section>

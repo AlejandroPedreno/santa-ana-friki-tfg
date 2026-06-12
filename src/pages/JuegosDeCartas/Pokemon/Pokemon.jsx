@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import pokemonBanner from '../../../resources/images/home/slider-home/slider-riftbound.webp'
+import pokemonBanner from '../../../resources/images/home/slider-home/slider-riftbound.jpg'
 import cartasSueltas from '../../../resources/images/cartas-sueltas.png'
 import { CartContext } from '../../../context/CartContext.jsx'
 import CardGamePage from '../../../components/CardGamePage/CardGamePage.jsx'

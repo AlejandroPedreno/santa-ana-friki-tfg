@@ -1,38 +1,31 @@
 import { useEffect, useRef, useState, useContext, useMemo } from 'react'
 import './Header.css'
-import searchIcon from '../../resources/images/icons/search.svg'
 import cartIcon from '../../resources/images/icons/shopping-cart.svg'
 import profileIcon from '../../resources/images/icons/account.svg'
 import { CartContext } from '../../context/CartContext.jsx'
+import { AuthContext } from '../../context/AuthContext.jsx'
 
 function Header() {
-	const [isSearchOpen, setIsSearchOpen] = useState(false)
+	// Cada estado controla un menú desplegable independiente del encabezado.
 	const [isCardGamesOpen, setIsCardGamesOpen] = useState(false)
 	const [isMiniaturesOpen, setIsMiniaturesOpen] = useState(false)
 	const [isMaquetasOpen, setIsMaquetasOpen] = useState(false)
 	const [isAccesoriosOpen, setIsAccesoriosOpen] = useState(false)
 	const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
-	const searchInputRef = useRef(null)
 	const cardGamesRef = useRef(null)
 	const miniaturesRef = useRef(null)
 	const maquetasRef = useRef(null)
 	const accesoriosRef = useRef(null)
 	const accountMenuRef = useRef(null)
 	const { getTotalItems } = useContext(CartContext)
+	const { isAuthenticated, isAdmin, signOut, user } = useContext(AuthContext)
 	const cartCount = useMemo(() => getTotalItems(), [getTotalItems])
-	const hasActiveSession = Boolean(
-		localStorage.getItem('santa-ana-friki-session') ||
-		localStorage.getItem('authToken') ||
-		localStorage.getItem('token')
-	)
+	const accountLabel = isAuthenticated
+		? `Sesión iniciada${user?.first_name ? ` como ${user.first_name}` : ''}`
+		: 'Opciones de cuenta'
 
 	useEffect(() => {
-		if (isSearchOpen) {
-			searchInputRef.current?.focus()
-		}
-	}, [isSearchOpen])
-
-	useEffect(() => {
+		// Cierra los menús al hacer clic fuera o pulsar Escape.
 		const handleClickOutside = (event) => {
 			if (!cardGamesRef.current?.contains(event.target)) {
 				setIsCardGamesOpen(false)
@@ -77,6 +70,7 @@ function Header() {
 	return (
 		<header className="site-header">
 			<div className="site-header__inner">
+				{/* Logotipo que siempre vuelve a la portada. */}
 				<a className="site-header__brand" href="/">
 					<img
 						className="site-header__logo"
@@ -86,6 +80,7 @@ function Header() {
 				</a>
 
 				<nav aria-label="Principal" className="site-header__nav">
+					{/* Menú principal por categorías del catálogo. */}
 					<div className="site-header__dropdown" ref={cardGamesRef}>
 						<button
 							type="button"
@@ -207,23 +202,6 @@ function Header() {
 				</nav>
 
 				<div className="site-header__actions">
-					<div className="site-header__search">
-						<input
-							ref={searchInputRef}
-							className={`site-header__search-input ${isSearchOpen ? 'is-open' : ''}`}
-							type="text"
-							placeholder="Buscar..."
-						/>
-						<button
-							aria-label="Buscar"
-							className="site-header__icon-btn"
-							type="button"
-							onClick={() => setIsSearchOpen((prev) => !prev)}
-						>
-							<img alt="Buscar" src={searchIcon} />
-						</button>
-					</div>
-
 					<a href="/carrito" aria-label="Carrito de compras" className="site-header__cart-btn">
 						<img alt="Carrito" src={cartIcon} />
 						{cartCount > 0 && (
@@ -232,7 +210,7 @@ function Header() {
 					</a>
 					<div className="site-header__account" ref={accountMenuRef}>
 						<button
-							aria-label="Perfil"
+							aria-label={accountLabel}
 							className="site-header__icon-btn"
 							type="button"
 							aria-haspopup="true"
@@ -242,7 +220,7 @@ function Header() {
 							<img alt="Perfil" src={profileIcon} />
 						</button>
 
-						{!hasActiveSession && (
+						{!isAuthenticated && (
 							<div
 								className={`site-header__account-menu ${isAccountMenuOpen ? 'is-open' : ''}`}
 								role="menu"
@@ -255,6 +233,36 @@ function Header() {
 								<a href="/register" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>
 									Registrarse
 								</a>
+							</div>
+						)}
+
+						{isAuthenticated && (
+							<div
+								className={`site-header__account-menu ${isAccountMenuOpen ? 'is-open' : ''}`}
+								role="menu"
+								aria-label="Opciones de cuenta"
+								aria-hidden={!isAccountMenuOpen}
+							>
+								{isAdmin && (
+									<a href="/admin/productos" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>
+										Panel admin
+									</a>
+								)}
+								<div className="site-header__account-summary">
+									{user?.first_name ? `Hola, ${user.first_name}` : 'Sesión iniciada'}
+								</div>
+								<button
+									type="button"
+									role="menuitem"
+									className="site-header__account-action"
+									onClick={() => {
+										signOut()
+										setIsAccountMenuOpen(false)
+										window.location.assign('/')
+									}}
+								>
+									Cerrar sesión
+								</button>
 							</div>
 						)}
 					</div>

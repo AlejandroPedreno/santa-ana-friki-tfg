@@ -1,5 +1,6 @@
 import { obtenerProductosCatalogo, obtenerSubcategoriasCatalogo } from './catalogoApi'
 
+// Wrapper específico para accesorios con el mismo patrón de consulta que el resto.
 export function obtenerProductosAccesorios(slugSeccion, slugSubcategoria = '') {
   return obtenerProductosCatalogo({
     section: slugSeccion,
@@ -8,6 +9,7 @@ export function obtenerProductosAccesorios(slugSeccion, slugSubcategoria = '') {
   })
 }
 
+// Obtiene las subcategorías de accesorios para filtros y menús.
 export function obtenerSubcategoriasAccesorios(slugSeccion) {
   return obtenerSubcategoriasCatalogo({ section: slugSeccion })
 }

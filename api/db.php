@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 function api_config(): array
 {
+    // Carga la configuración una sola vez para reutilizarla durante toda la petición.
     static $config = null;
 
     if ($config === null) {
@@ -13,8 +14,9 @@ function api_config(): array
     return $config;
 }
 
-function api_send_json(mixed $data, int $statusCode = 200): never
+function api_send_json($data, int $statusCode = 200): void
 {
+    // Respuesta JSON estándar con cabeceras CORS y código HTTP.
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
 
@@ -27,8 +29,25 @@ function api_send_json(mixed $data, int $statusCode = 200): never
     exit;
 }
 
+function api_request_body(): array
+{
+    // Primero intenta leer JSON puro y, si no existe, usa los datos clásicos de formulario.
+    $rawInput = file_get_contents('php://input');
+
+    if (is_string($rawInput) && trim($rawInput) !== '') {
+        $decoded = json_decode($rawInput, true);
+
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    return $_POST;
+}
+
 function api_pdo(): PDO
 {
+    // Abre la conexión PDO con el formato que espera el proyecto.
     $config = api_config();
     $dsn = sprintf(
         'mysql:host=%s;port=%d;dbname=%s;charset=%s',
@@ -47,6 +66,7 @@ function api_pdo(): PDO
 
 function api_get_bearer_token(): ?string
 {
+    // Lee el token Bearer de la cabecera Authorization.
     $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['Authorization'] ?? null;
     if (!$auth) return null;
 
@@ -59,6 +79,7 @@ function api_get_bearer_token(): ?string
 
 function api_generate_token(int $userId, int $ttl = 3600): string
 {
+    // Genera un token simple firmado con caducidad para sesiones ligeras.
     $config = api_config();
     $secret = $config['api_secret'] ?? 'change_me';
     $expiry = time() + $ttl;
@@ -71,6 +92,7 @@ function api_generate_token(int $userId, int $ttl = 3600): string
 
 function api_verify_token(string $token): ?int
 {
+    // Comprueba firma y fecha de caducidad antes de devolver el ID de usuario.
     $config = api_config();
     $secret = $config['api_secret'] ?? 'change_me';
 
@@ -88,4 +110,87 @@ function api_verify_token(string $token): ?int
     if (!hash_equals($expected, $sig)) return null;
 
     return (int)$userId;
+}
+
+function api_authenticated_user(?string $token = null): ?array
+{
+    // Resuelve el usuario asociado al token actual para reutilizarlo en endpoints protegidos.
+    $tokenValue = $token ?? api_get_bearer_token();
+    if (!$tokenValue) {
+        return null;
+    }
+
+    $userId = api_verify_token($tokenValue);
+    if (!$userId) {
+        return null;
+    }
+
+    $pdo = api_pdo();
+    $stmt = $pdo->prepare('SELECT id, email, role, first_name, last_name, phone, active FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $userId]);
+    $user = $stmt->fetch();
+
+    return $user ?: null;
+}
+
+function api_require_admin(): array
+{
+    // Bloquea el acceso si no hay sesión válida o si el rol no es administrador.
+    $user = api_authenticated_user();
+
+    if (!$user) {
+        api_send_json(['error' => 'No autorizado.'], 401);
+    }
+
+    if (($user['role'] ?? 'user') !== 'admin') {
+        api_send_json(['error' => 'No tienes permisos de administrador.'], 403);
+    }
+
+    return $user;
+}
+
+function api_slugify(string $value): string
+{
+    // Convierte texto libre en un slug apto para URLs y nombres internos.
+    $value = trim(mb_strtolower($value));
+    $value = preg_replace('/[^a-z0-9]+/u', '-', $value) ?? $value;
+    $value = trim($value, '-');
+
+    return $value !== '' ? $value : 'producto';
+}
+
+function api_store_product_image(array $file): ?string
+{
+    // Guarda la imagen subida en la carpeta pública de productos y devuelve su ruta.
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return null;
+    }
+
+    $tmpName = $file['tmp_name'] ?? '';
+    $originalName = (string)($file['name'] ?? '');
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        return null;
+    }
+
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+    if (!in_array($extension, $allowedExtensions, true)) {
+        api_send_json(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, WEBP o GIF.'], 422);
+    }
+
+    $uploadDirectory = dirname(__DIR__) . '/public/uploads/products';
+    if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0777, true) && !is_dir($uploadDirectory)) {
+        api_send_json(['error' => 'No se pudo crear la carpeta de subida de imágenes.'], 500);
+    }
+
+    $fileName = uniqid('product_', true) . '.' . $extension;
+    $destination = $uploadDirectory . '/' . $fileName;
+
+    if (!move_uploaded_file($tmpName, $destination)) {
+        api_send_json(['error' => 'No se pudo guardar la imagen subida.'], 500);
+    }
+
+    return '/uploads/products/' . $fileName;
 }

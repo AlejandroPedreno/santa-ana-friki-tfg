@@ -64,5 +64,26 @@
 
 	.quienes-somos-page__image {
 		max-width: 420px;
+		justify-self: center;
+		margin: 0 auto;
+	}
+}
+
+@media (max-width: 760px) {
+	.quienes-somos-page {
+		padding: 18px 12px 24px;
+	}
+
+	.quienes-somos-page__card {
+		padding: 16px 14px;
+		border-radius: 12px;
+	}
+
+	.quienes-somos-page__layout {
+		gap: 18px;
+	}
+
+	.quienes-somos-page__image {
+		max-width: 100%;
 	}
 }

@@ -7,12 +7,16 @@ import { CartContext } from '../../context/CartContext.jsx'
 function Cart() {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useContext(CartContext)
   const freeShippingThreshold = 100
-  const totalPrice = getTotalPrice()
+  const shippingCost = 6.95
+  const subtotal = getTotalPrice()
+  const shipping = subtotal < freeShippingThreshold ? shippingCost : 0
+  const totalPrice = subtotal + shipping
   const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0)
-  const amountRemainingForFreeShipping = Math.max(freeShippingThreshold - totalPrice, 0)
-  const freeShippingProgress = Math.min((totalPrice / freeShippingThreshold) * 100, 100)
+  const amountRemainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0)
+  const freeShippingProgress = Math.min((subtotal / freeShippingThreshold) * 100, 100)
   const hasFreeShipping = amountRemainingForFreeShipping === 0
 
+  // Si no hay productos en el carrito, se muestra la pantalla vacía y se evita renderizar el resto.
   if (cartItems.length === 0) {
     return (
       <>
@@ -73,6 +77,7 @@ function Cart() {
                       <button
                         type="button"
                         className="cart-page__quantity-btn"
+                        disabled={item.quantity >= Number(item.stock ?? item.quantity)}
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         aria-label="Aumentar cantidad"
                       >
@@ -83,8 +88,11 @@ function Cart() {
                     <div className="cart-page__item-total">
                       <p className="cart-page__item-total-label">Subtotal</p>
                       <p className="cart-page__item-subtotal">
-                        {(parseFloat(item.price.replace('EUR', '').trim()) * item.quantity).toFixed(2)}€
+                        {/* El subtotal se calcula a partir del precio normalizado y la cantidad del artículo. */}
+                        {(parseFloat(item.price.replace(/EUR|€/g, '').trim()) * item.quantity).toFixed(2)}€
                       </p>
+                      {/* Se muestra el stock disponible real para limitar la cantidad comprable. */}
+                      <p className="cart-page__item-stock">Stock disponible: {Number(item.stock ?? item.quantity)}</p>
                     </div>
 
                     <button
@@ -128,7 +136,15 @@ function Cart() {
               </div>
 
               <div className="cart-page__total">
-                <h2>Total:</h2>
+                <div className="cart-page__total-row">
+                  <span>Subtotal:</span>
+                  <span>{subtotal.toFixed(2)}€</span>
+                </div>
+                <div className="cart-page__total-row">
+                  <span>Envío:</span>
+                  <span>{shipping > 0 ? `${shipping.toFixed(2)}€` : 'Gratis'}</span>
+                </div>
+                <h2 className="cart-page__total-final">Total:</h2>
                 <p className="cart-page__total-price">{totalPrice.toFixed(2)}€</p>
               </div>
 
@@ -136,7 +152,13 @@ function Cart() {
                 <button
                   type="button"
                   className="cart-page__checkout-btn"
-                  onClick={() => alert('Funcionalidad de pago próximamente')}
+                  onClick={() => {
+                    localStorage.setItem(
+                      'checkoutData',
+                      JSON.stringify({ totalPrice, subtotal, shipping, cartItems })
+                    )
+                    window.location.href = '/checkout'
+                  }}
                 >
                   Proceder al Pago
                 </button>
